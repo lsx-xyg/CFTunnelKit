@@ -109,14 +109,12 @@ onUnmounted(() => {
 
 <template>
   <div class="h-full">
-    <div v-if="booting" class="flex h-full items-center justify-center">
+    <div v-if="booting" class="fixed inset-0 flex items-center justify-center">
       <p class="text-sm text-slate-400">正在启动…</p>
     </div>
-    <Transition name="fade" mode="out-in">
-      <AuthView v-if="!state.authenticated" :key="'auth'" :initial-message="state.message" @verified="refresh" />
-    </Transition>
-    <Transition name="fade" mode="out-in">
-      <MainView v-if="state.authenticated" :key="'main'" :state="state" @refresh="refresh" @session-expired="onSessionExpired" @toggle-log="toggleLog" />
+    <Transition v-else name="fade" mode="out-in">
+      <AuthView v-if="!state.authenticated" key="auth" :initial-message="state.message" @verified="refresh" />
+      <MainView v-else key="main" :state="state" @refresh="refresh" @session-expired="onSessionExpired" @toggle-log="toggleLog" />
     </Transition>
 
     <Transition name="slide-up">

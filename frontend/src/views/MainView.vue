@@ -139,11 +139,10 @@ function friendlyError(e: unknown): string {
 async function loadTunnels() {
   loading.value = true
   listError.value = ''
+  const minDelay = new Promise((r) => setTimeout(r, 800))
   try {
     tunnels.value = await ListTunnels()
   } catch (e) {
-    // The backend clears the persisted config and resets the state on auth
-    // failure; detecting it here lets App.vue jump to the auth page.
     const st = await GetAuthState()
     if (!st.authenticated) {
       emit('session-expired')
@@ -151,6 +150,7 @@ async function loadTunnels() {
     }
     listError.value = friendlyError(e)
   } finally {
+    await minDelay
     loading.value = false
   }
 }
@@ -365,9 +365,15 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
     </div>
 
     <main class="flex flex-1 flex-col gap-4 overflow-hidden p-6">
-      <!-- loading: skeleton rows -->
-      <div v-if="loading" class="space-y-3" aria-busy="true">
-        <div v-for="i in 4" :key="i" class="h-14 animate-pulse rounded-xl bg-slate-100" />
+      <!-- loading: skeleton -->
+      <div v-if="loading" class="space-y-4" aria-busy="true">
+        <p class="text-center text-xs text-slate-400">加载隧道列表…</p>
+        <div class="grid grid-cols-4 gap-3">
+          <div v-for="i in 4" :key="i" class="h-16 animate-pulse rounded-xl bg-slate-200" />
+        </div>
+        <div class="space-y-2">
+          <div v-for="i in 3" :key="i" class="h-12 animate-pulse rounded-xl bg-slate-200" />
+        </div>
       </div>
 
       <!-- list error: stay on page + retry -->

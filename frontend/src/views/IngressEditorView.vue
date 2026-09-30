@@ -176,6 +176,7 @@ const saveable = computed(() => rules.value.length > 0 && rules.value.every((_, 
 async function load() {
   loading.value = true
   loadError.value = ''
+  const minDelay = new Promise((r) => setTimeout(r, 600))
   try {
     const [rs, zs] = await Promise.all([GetIngressConfig(props.tunnelId), ListZones()])
     rules.value = rs
@@ -185,6 +186,7 @@ async function load() {
   } catch (e) {
     loadError.value = String(e)
   } finally {
+    await minDelay
     loading.value = false
   }
 }
@@ -298,10 +300,11 @@ onMounted(load)
     <main class="flex-1 overflow-y-auto p-5">
       <p v-if="loadError" class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{{ loadError }}</p>
 
-      <div v-else-if="loading" class="space-y-2">
-        <div class="h-12 animate-pulse rounded-lg bg-slate-100" />
-        <div class="h-12 animate-pulse rounded-lg bg-slate-100" />
-        <div class="h-12 animate-pulse rounded-lg bg-slate-100" />
+      <div v-else-if="loading" class="space-y-3">
+        <p class="text-xs text-slate-400">加载 Ingress 规则…</p>
+        <div class="h-12 animate-pulse rounded-xl bg-slate-200" />
+        <div class="h-12 animate-pulse rounded-xl bg-slate-200" />
+        <div class="h-12 animate-pulse rounded-xl bg-slate-200" />
       </div>
 
       <template v-else>
