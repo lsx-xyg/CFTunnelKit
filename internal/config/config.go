@@ -74,6 +74,17 @@ func DefaultBinDir() (string, error) {
 	return filepath.Join(home, DirName, "bin"), nil
 }
 
+// DefaultLogPath returns the rolling cloudflared log file under the
+// home-based app dir (~/.cftunnelkit/logs/cloudflared.log; issue #9,
+// slice 07b: MaxSize 1MB, 3 backups, no compression).
+func DefaultLogPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("无法获取用户主目录: %w", err)
+	}
+	return filepath.Join(home, DirName, "logs", "cloudflared.log"), nil
+}
+
 // Load reads the config file. A missing file yields a zero Config with no
 // error (treated as unauthenticated). A corrupt file yields an error, which
 // callers must treat as unauthenticated as well (no crash).
