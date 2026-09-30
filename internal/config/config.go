@@ -37,6 +37,9 @@ type Config struct {
 	AccountName string      `json:"account_name"`
 	Permissions Permissions `json:"permissions"`
 	FirstZoneID string      `json:"first_zone_id"`
+	// Proxy is an optional HTTP/SOCKS proxy URL (e.g. "http://127.0.0.1:7890")
+	// used for Cloudflare API calls. Empty = direct connection.
+	Proxy string `json:"proxy,omitempty"`
 	// VerifiedAt is the RFC3339 timestamp of the last successful verification.
 	VerifiedAt string `json:"verified_at"`
 }

@@ -12,13 +12,16 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// newTransport returns an http.Transport that first tries the Windows
-// system proxy (set by Clash/v2rayN "system proxy" mode), then falls back
-// to HTTP_PROXY/HTTPS_PROXY env vars. This way the app works the moment
-// the user turns on their VPN/proxy without manually setting env vars.
-func newTransport() *http.Transport {
+// newTransport returns an http.Transport that uses the explicit proxyURL if
+// provided, otherwise tries the Windows system proxy, then falls back to
+// env vars.
+func newTransport(explicitProxy string) *http.Transport {
 	return &http.Transport{
 		Proxy: func(req *http.Request) (*url.URL, error) {
+			if explicitProxy != "" {
+				slog.Debug("using explicit proxy", "addr", explicitProxy)
+				return url.Parse(explicitProxy)
+			}
 			if p := windowsSystemProxy(); p != "" {
 				return url.Parse(p)
 			}

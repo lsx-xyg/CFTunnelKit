@@ -108,6 +108,12 @@ func (a *App) VerifyAndSaveToken(token string) (cloudflare.TokenInfo, error) {
 	return a.auth.VerifyAndSaveToken(a.ctxOrBackground(), token)
 }
 
+// GetProxy returns the saved proxy URL (empty = direct).
+func (a *App) GetProxy() string { return a.auth.GetProxy() }
+
+// SetProxy saves the proxy URL (empty = direct) and persists to config.
+func (a *App) SetProxy(proxy string) error { return a.auth.SetProxy(proxy) }
+
 // RetryVerify re-verifies the persisted token (offline retry button and
 // startup restore).
 func (a *App) RetryVerify() (cloudflare.TokenInfo, error) {

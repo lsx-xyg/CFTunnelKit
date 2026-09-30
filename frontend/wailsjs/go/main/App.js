@@ -22,6 +22,10 @@ export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
 }
 
+export function GetProxy() {
+  return window['go']['main']['App']['GetProxy']();
+}
+
 export function GetIngressConfig(arg1) {
   return window['go']['main']['App']['GetIngressConfig'](arg1);
 }
@@ -64,6 +68,10 @@ export function RetryVerify() {
 
 export function SaveIngressConfig(arg1, arg2) {
   return window['go']['main']['App']['SaveIngressConfig'](arg1, arg2);
+}
+
+export function SetProxy(arg1) {
+  return window['go']['main']['App']['SetProxy'](arg1);
 }
 
 export function StartTunnel(arg1) {
