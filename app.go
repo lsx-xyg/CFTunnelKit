@@ -224,6 +224,17 @@ func (a *App) LogDir() string {
 	return applog.Dir()
 }
 
+// HideWindow hides the main window (tray behavior)
+func (a *App) HideWindow() {
+	wailsruntime.WindowHide(a.ctx)
+}
+
+// ShowWindow restores the main window from tray
+func (a *App) ShowWindow() {
+	wailsruntime.WindowShow(a.ctx)
+	wailsruntime.WindowUnminimise(a.ctx)
+}
+
 // OpenLogDir opens the logs folder in the system file manager.
 func (a *App) OpenLogDir() {
 	d := applog.Dir()
