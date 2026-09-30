@@ -88,7 +88,7 @@ func New(opts Options) CFClient {
 	return &client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   strings.TrimSpace(opts.Token),
-		hc:      &http.Client{Timeout: timeout},
+		hc:      &http.Client{Timeout: timeout, Transport: newTransport()},
 		ua:      ua,
 	}
 }
