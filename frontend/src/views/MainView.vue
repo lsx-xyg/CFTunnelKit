@@ -12,6 +12,7 @@ import IngressEditorView from './IngressEditorView.vue'
 interface LogPayload {
   timestamp: number
   stream: 'stdout' | 'stderr'
+  level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG'
   line: string
   tunnel_id: string
 }
@@ -179,6 +180,24 @@ function fmtTime(iso: string | undefined): string {
 function logTime(ts: number): string {
   const d = new Date(ts)
   return d.toLocaleTimeString('zh-CN', { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0')
+}
+
+function logLevelLabel(level: string): string {
+  switch (level) {
+    case 'ERROR': return 'ERR'
+    case 'WARN': return 'WRN'
+    case 'DEBUG': return 'DBG'
+    default: return 'INF'
+  }
+}
+
+function logLevelClass(level: string): string {
+  switch (level) {
+    case 'ERROR': return 'text-red-400'
+    case 'WARN': return 'text-amber-400'
+    case 'DEBUG': return 'text-slate-600'
+    default: return 'text-slate-400'
+  }
 }
 
 watch(
@@ -409,7 +428,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           <p v-if="visibleLogs.length === 0" class="text-slate-500">暂无日志 — 启动 Tunnel 后实时输出将显示在这里</p>
           <p v-for="(l, i) in visibleLogs" :key="i" class="whitespace-pre-wrap break-all">
             <span class="text-slate-500">{{ logTime(l.timestamp) }}</span>
-            <span :class="l.stream === 'stderr' ? 'text-amber-400' : 'text-slate-400'"> {{ l.stream === 'stderr' ? 'ERR' : 'OUT' }} </span>
+            <span :class="logLevelClass(l.level)"> {{ logLevelLabel(l.level) }} </span>
             <span v-if="logFilter" class="text-slate-500">{{ tunnelName(l.tunnel_id) }}:</span>
             <span>{{ l.line }}</span>
           </p>
