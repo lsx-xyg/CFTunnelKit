@@ -17,6 +17,7 @@ const saving = ref(false)
 const saveError = ref('')
 const toast = ref('')
 let snapshot = '[]' // normalized snapshot of the last saved state
+let savedHosts: string[] = [] // hostnames from last successful save (for DNS diff)
 let toastTimer: number | undefined
 
 const SERVICE_RE = /^(https?|tcp|ssh|unix|rdp):\/\/|^http_status:\d+$/
@@ -180,6 +181,7 @@ async function load() {
     rules.value = rs
     zones.value = zs
     snapshot = JSON.stringify(rs.map(norm))
+    savedHosts = hostnamesOf(rs)
   } catch (e) {
     loadError.value = String(e)
   } finally {
@@ -213,14 +215,14 @@ async function save() {
   saving.value = true
   saveError.value = ''
   try {
-    const oldHosts = hostnamesOf(rules.value)
+    const oldHosts = savedHosts
     const got = await SaveIngressConfig(props.tunnelId, rules.value)
     const newHosts = hostnamesOf(got)
     rules.value = got
     snapshot = JSON.stringify(got.map(norm))
+    savedHosts = newHosts
     showToast('配置已保存')
-    // issue #6: offer DNS link for added / removed hostnames (skip when
-    // there are no zones — the editor already shows the no-zone notice)
+    // issue #6: offer DNS link for added / removed hostnames
     if (zones.value.length > 0) {
       const create = newHosts.filter((h) => !oldHosts.includes(h))
       const remove = oldHosts.filter((h) => !newHosts.includes(h))
