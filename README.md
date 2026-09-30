@@ -30,12 +30,47 @@ wails dev
 
 # Linux 构建
 wails build -tags webkit2_41   # 使用 webkit2gtk-4.1（源默认）
-
-# Windows 安装包（Linux 交叉编译 + NSIS + checksums.txt）
-./scripts/nsis-build.sh        # 前置：sudo apt-get install -y nsis mingw-w64
 ```
 
 > Linux 构建需要 `libgtk-3-dev`、`libwebkit2gtk-4.1-dev`、`libayatana-appindicator3-dev`、`librsvg2-dev`。
+
+## 打包 Windows 安装包
+
+产物输出到 `build/bin/`：`cftunnelkit.exe`（裸 exe）和 `cftunnelkit-amd64-installer.exe`（NSIS 安装包，约 6MB）。
+
+### 方式 A：Windows 本机构建（推荐）
+
+在 Windows 仓库目录下：
+
+```powershell
+# 前置：安装 NSIS 并确保 makensis 在 PATH
+#   winget install NSIS.NSIS
+#   或从 https://nsis.sourceforge.io/Download 安装，把 C:\Program Files (x86)\NSIS 加入 PATH
+
+wails build -nsis -clean
+```
+
+产物直接在 `build/bin/`。
+
+### 方式 B：Linux 交叉编译（CI / 无 Windows 机器时）
+
+```bash
+# 前置：nsis + mingw-w64（Debian/Ubuntu）
+sudo apt-get install -y nsis mingw-w64
+./scripts/nsis-build.sh
+```
+
+脚本会：交叉编译 Windows amd64 → 调 NSIS 生成安装包 → 生成 `checksums.txt`（安装包 + exe 的 SHA256）。
+
+### 产物校验
+
+```bash
+sha256sum -c build/bin/checksums.txt
+```
+
+### 未来：GitHub Actions（计划中）
+
+打 tag 后自动构建 Windows 安装包并上传到 GitHub Release，无需本地打包。
 
 ## 目录结构
 
