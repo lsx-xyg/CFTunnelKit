@@ -44,7 +44,7 @@ const download = ref<{ active: boolean; phase: string; downloaded: number; total
   downloaded: 0,
   total: 0,
 })
-const toast = ref('')
+const toast = ref<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null)
 let toastTimer: number | undefined
 
 // --- slice 04: create / detail dialogs ---
@@ -55,6 +55,21 @@ const detailTunnelId = ref<string | null>(null)
 const ingressTunnelId = ref<string | null>(null)
 const ingressTunnelName = ref('')
 
+// --- UI polish: log panel fullscreen + operation log ---
+const logFullscreen = ref(false)
+const logTab = ref<'runtime' | 'ops'>('runtime')
+interface OpLog {
+  timestamp: number
+  action: string
+  result: 'ok' | 'fail'
+}
+const opLogs = ref<OpLog[]>([])
+
+function pushOp(action: string, result: 'ok' | 'fail') {
+  opLogs.value.push({ timestamp: Date.now(), action, result })
+  if (opLogs.value.length > 500) opLogs.value.splice(0, opLogs.value.length - 500)
+}
+
 function openIngress(t: cloudflare.Tunnel) {
   ingressTunnelId.value = t.id
   ingressTunnelName.value = t.name
@@ -62,13 +77,15 @@ function openIngress(t: cloudflare.Tunnel) {
 
 function onCreated() {
   showCreate.value = false
-  showToast('Tunnel 创建成功')
+  showToast('Tunnel 创建成功', 'success')
+  pushOp('创建 Tunnel', 'ok')
   loadTunnels()
 }
 
 function onDeleted() {
   detailTunnelId.value = null
-  showToast('Tunnel 已删除')
+  showToast('Tunnel 已删除', 'success')
+  pushOp('删除 Tunnel', 'ok')
   loadTunnels()
 }
 
@@ -92,10 +109,10 @@ function pushLog(p: LogPayload) {
   }
 }
 
-function showToast(msg: string) {
-  toast.value = msg
+function showToast(msg: string, type: 'success' | 'error' | 'info' = 'info') {
+  toast.value = { msg, type }
   if (toastTimer) window.clearTimeout(toastTimer)
-  toastTimer = window.setTimeout(() => (toast.value = ''), 3500)
+  toastTimer = window.setTimeout(() => (toast.value = null), 3500)
 }
 
 // Maps backend error strings to the issue copy for the inline error state.
@@ -143,13 +160,16 @@ async function startTunnel(t: cloudflare.Tunnel) {
   try {
     await StartTunnel(t.id)
     runStates.value[t.id] = 'running'
+    showToast(`已启动 ${t.name}`, 'success')
+    pushOp(`启动 ${t.name}`, 'ok')
   } catch (e) {
     const st = await GetAuthState()
     if (!st.authenticated) {
       emit('session-expired')
       return
     }
-    showToast(friendlyError(e))
+    showToast(friendlyError(e), 'error')
+    pushOp(`启动 ${t.name}`, 'fail')
   } finally {
     busy.value[t.id] = false
   }
@@ -160,8 +180,11 @@ async function stopTunnel(t: cloudflare.Tunnel) {
   try {
     await StopTunnel(t.id)
     runStates.value[t.id] = 'stopped'
+    showToast(`已停止 ${t.name}`, 'success')
+    pushOp(`停止 ${t.name}`, 'ok')
   } catch (e) {
-    showToast(friendlyError(e))
+    showToast(friendlyError(e), 'error')
+    pushOp(`停止 ${t.name}`, 'fail')
   } finally {
     busy.value[t.id] = false
   }
@@ -218,7 +241,8 @@ onMounted(async () => {
   EventsOn('cloudflared:status', (p: StatusPayload) => {
     runStates.value[p.tunnel_id] = p.state
     if (p.state === 'error') {
-      showToast(`Tunnel ${tunnelName(p.tunnel_id)} 意外退出${p.exit_code != null ? `（退出码 ${p.exit_code}）` : ''}`)
+      showToast(`Tunnel ${tunnelName(p.tunnel_id)} 意外退出${p.exit_code != null ? `（退出码 ${p.exit_code}）` : ''}`, 'error')
+      pushOp(`意外退出 ${tunnelName(p.tunnel_id)}`, 'fail')
     }
   })
   EventsOn('cloudflared:download', (p: DownloadPayload) => {
@@ -371,7 +395,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
               </td>
               <td class="px-5 py-3 font-mono text-xs text-slate-500">{{ t.id }}</td>
               <td class="px-5 py-3 text-slate-500">{{ fmtTime(t.created_at) }}</td>
-              <td class="px-5 py-3">
+              <td class="px-5 py-3 whitespace-nowrap">
                 <button
                   class="mr-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   @click="openIngress(t)"
@@ -387,18 +411,18 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
                 <button
                   v-if="runStates[t.id] !== 'running'"
                   :disabled="busy[t.id]"
-                  class="rounded-md bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:bg-green-300"
+                  class="inline-block w-[72px] rounded-md bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:bg-green-300"
                   @click="startTunnel(t)"
                 >
-                  {{ busy[t.id] ? '启动中…' : '启动' }}
+                  {{ busy[t.id] ? '启动中' : '启动' }}
                 </button>
                 <button
                   v-else
                   :disabled="busy[t.id]"
-                  class="rounded-md bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300"
+                  class="inline-block w-[72px] rounded-md bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300"
                   @click="stopTunnel(t)"
                 >
-                  {{ busy[t.id] ? '停止中…' : '停止' }}
+                  {{ busy[t.id] ? '停止中' : '停止' }}
                 </button>
               </td>
             </tr>
@@ -407,31 +431,68 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </div>
 
       <!-- slice 03: log panel -->
-      <section class="mt-4 rounded-xl border border-slate-200 bg-white">
+      <section class="mt-4 rounded-xl border border-slate-200 bg-white" :class="logFullscreen ? 'fixed inset-4 z-40 flex flex-col' : ''">
         <header class="flex items-center justify-between border-b border-slate-200 px-4 py-2">
-          <h2 class="text-sm font-semibold text-slate-700">运行日志</h2>
+          <div class="flex items-center gap-1">
+            <button
+              class="rounded px-2 py-1 text-xs font-medium"
+              :class="logTab === 'runtime' ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:text-slate-700'"
+              @click="logTab = 'runtime'"
+            >
+              运行日志
+            </button>
+            <button
+              class="rounded px-2 py-1 text-xs font-medium"
+              :class="logTab === 'ops' ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:text-slate-700'"
+              @click="logTab = 'ops'"
+            >
+              操作记录
+            </button>
+          </div>
           <div class="flex items-center gap-2">
             <select
+              v-if="logTab === 'runtime'"
               v-model="logFilter"
               class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600"
             >
               <option value="">全部 Tunnel</option>
               <option v-for="t in runningTunnels" :key="t.id" :value="t.id">{{ t.name }}</option>
             </select>
-            <span class="text-xs text-slate-400">{{ visibleLogs.length }} 行</span>
+            <span class="text-xs text-slate-400">
+              {{ logTab === 'runtime' ? visibleLogs.length + ' 行' : opLogs.length + ' 条' }}
+            </span>
+            <button
+              class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+              @click="logFullscreen = !logFullscreen"
+            >
+              {{ logFullscreen ? '退出全屏' : '全屏' }}
+            </button>
           </div>
         </header>
         <div
           ref="logBox"
-          class="h-52 overflow-y-auto bg-slate-900 px-3 py-2 font-mono text-xs leading-5 text-slate-100"
+          class="overflow-y-auto bg-slate-900 px-3 py-2 font-mono text-xs leading-5 text-slate-100"
+          :class="logFullscreen ? 'flex-1' : 'h-52'"
         >
-          <p v-if="visibleLogs.length === 0" class="text-slate-500">暂无日志 — 启动 Tunnel 后实时输出将显示在这里</p>
-          <p v-for="(l, i) in visibleLogs" :key="i" class="whitespace-pre-wrap break-all">
-            <span class="text-slate-500">{{ logTime(l.timestamp) }}</span>
-            <span :class="logLevelClass(l.level)"> {{ logLevelLabel(l.level) }} </span>
-            <span v-if="logFilter" class="text-slate-500">{{ tunnelName(l.tunnel_id) }}:</span>
-            <span>{{ l.line }}</span>
-          </p>
+          <!-- runtime cloudflared logs -->
+          <template v-if="logTab === 'runtime'">
+            <p v-if="visibleLogs.length === 0" class="text-slate-500">暂无日志 — 启动 Tunnel 后实时输出将显示在这里</p>
+            <p v-for="(l, i) in visibleLogs" :key="i" class="whitespace-pre-wrap break-all">
+              <span class="text-slate-500">{{ logTime(l.timestamp) }}</span>
+              <span :class="logLevelClass(l.level)"> {{ logLevelLabel(l.level) }} </span>
+              <span v-if="logFilter" class="text-slate-500">{{ tunnelName(l.tunnel_id) }}:</span>
+              <span>{{ l.line }}</span>
+            </p>
+          </template>
+          <!-- operation log -->
+          <template v-else>
+            <p v-if="opLogs.length === 0" class="text-slate-500">暂无操作记录</p>
+            <p v-for="(o, i) in opLogs" :key="i" class="whitespace-pre-wrap break-all">
+              <span class="text-slate-500">{{ logTime(o.timestamp) }}</span>
+              <span :class="o.result === 'ok' ? 'text-green-400' : 'text-red-400'"> {{ o.result === 'ok' ? 'OK' : 'FAIL' }} </span>
+              <span>{{ o.action }}</span>
+            </p>
+          </template>
         </div>
       </section>
     </main>
@@ -457,9 +518,10 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
     <!-- toast -->
     <div
       v-if="toast"
-      class="fixed right-6 top-6 z-50 max-w-sm rounded-lg bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg"
+      class="fixed right-6 top-6 z-50 max-w-md rounded-lg px-4 py-2.5 text-sm text-white shadow-lg break-words"
+      :class="toast.type === 'success' ? 'bg-green-600' : toast.type === 'error' ? 'bg-red-600' : 'bg-slate-800'"
     >
-      {{ toast }}
+      {{ toast.msg }}
     </div>
   </div>
 </template>
