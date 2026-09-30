@@ -2,9 +2,22 @@
 
 package cloudflare
 
-import "net/http"
+import (
+	"log/slog"
+	"net/http"
+	"net/url"
+)
 
-// newTransport on non-Windows platforms uses the default env-var proxy.
-func newTransport() *http.Transport {
-	return &http.Transport{Proxy: http.ProxyFromEnvironment}
+// newTransport on non-Windows platforms uses the explicit proxyURL if set,
+// otherwise env-var proxy.
+func newTransport(explicitProxy string) *http.Transport {
+	return &http.Transport{
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			if explicitProxy != "" {
+				slog.Debug("using explicit proxy", "addr", explicitProxy)
+				return url.Parse(explicitProxy)
+			}
+			return http.ProxyFromEnvironment(req)
+		},
+	}
 }

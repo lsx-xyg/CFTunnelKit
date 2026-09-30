@@ -80,7 +80,7 @@ func newTestService(t *testing.T, c cloudflare.CFClient) (*Service, *config.Stor
 	t.Helper()
 	store := config.NewStore(filepath.Join(t.TempDir(), "config.json"))
 	svc := NewService(store)
-	svc.newClient = func(token string) cloudflare.CFClient { return c }
+	svc.newClient = func(token, _ string) cloudflare.CFClient { return c }
 	return svc, store
 }
 
@@ -181,7 +181,7 @@ func TestRestore_ValidToken_Authenticated(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := NewService(store)
-	svc.newClient = func(token string) cloudflare.CFClient {
+	svc.newClient = func(token, _ string) cloudflare.CFClient {
 		return &fakeClient{verifyFn: func(ctx context.Context) (cloudflare.TokenInfo, error) {
 			return okInfo(), nil
 		}}
@@ -199,7 +199,7 @@ func TestRetryVerify_AuthError_ClearsConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := NewService(store)
-	svc.newClient = func(token string) cloudflare.CFClient {
+	svc.newClient = func(token, _ string) cloudflare.CFClient {
 		return &fakeClient{verifyFn: func(ctx context.Context) (cloudflare.TokenInfo, error) {
 			return cloudflare.TokenInfo{}, &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "Token 无效或已失效"}
 		}}
@@ -230,7 +230,7 @@ func TestRetryVerify_NetworkError_Offline(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := NewService(store)
-	svc.newClient = func(token string) cloudflare.CFClient {
+	svc.newClient = func(token, _ string) cloudflare.CFClient {
 		return &fakeClient{verifyFn: func(ctx context.Context) (cloudflare.TokenInfo, error) {
 			return cloudflare.TokenInfo{}, &cloudflare.APIError{Kind: cloudflare.KindNetwork, Message: "无法连接 Cloudflare API"}
 		}}
@@ -262,7 +262,7 @@ func newListService(t *testing.T, c cloudflare.CFClient, cfg config.Config) (*Se
 		t.Fatal(err)
 	}
 	svc := NewService(store)
-	svc.newClient = func(token string) cloudflare.CFClient { return c }
+	svc.newClient = func(token, _ string) cloudflare.CFClient { return c }
 	return svc, store
 }
 

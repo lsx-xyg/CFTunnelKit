@@ -63,6 +63,7 @@ type Options struct {
 	Token     string        // Cloudflare API token
 	Timeout   time.Duration // defaults to 10s
 	UserAgent string        // defaults to CFTunnelKit/0.1
+	Proxy     string        // optional proxy URL (e.g. http://127.0.0.1:7890); empty = auto
 }
 
 type client struct {
@@ -89,7 +90,7 @@ func New(opts Options) CFClient {
 	return &client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   strings.TrimSpace(opts.Token),
-		hc:      &http.Client{Timeout: timeout, Transport: newTransport()},
+		hc:      &http.Client{Timeout: timeout, Transport: newTransport(opts.Proxy)},
 		ua:      ua,
 	}
 }
