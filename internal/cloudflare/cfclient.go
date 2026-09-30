@@ -231,18 +231,27 @@ func (c *client) VerifyToken(ctx context.Context) (TokenInfo, error) {
 		return TokenInfo{}, &APIError{Kind: KindAuth, Message: "Token 不能为空"}
 	}
 
-	// 1. Token validation.
+	// 1. Token validation via /user/tokens/verify.
+	// Newer token formats (cfat_ prefix) can return 401 "Invalid API Token"
+	// on this self-check endpoint while every business API still works, so
+	// a 401 here is treated as a soft failure: account resolution below
+	// (which calls /accounts for real) decides whether the token is truly
+	// invalid. Non-auth errors (network/5xx) still fail fast.
 	var vr struct {
 		ID     string `json:"id"`
 		Status string `json:"status"`
 	}
-	if err := c.getJSON(ctx, "/user/tokens/verify", &vr, ""); err != nil {
-		return TokenInfo{}, err
-	}
-	if vr.Status != "active" {
+	verr := c.getJSON(ctx, "/user/tokens/verify", &vr, "")
+	if verr == nil && vr.Status != "active" {
 		return TokenInfo{}, &APIError{Kind: KindAuth, Message: "Token 无效或已失效"}
 	}
+	if verr != nil && !IsAPIError(verr, KindAuth) {
+		return TokenInfo{}, verr
+	}
 	info := TokenInfo{TokenID: vr.ID}
+	if verr != nil {
+		info.Warnings = append(info.Warnings, "Token 自校验端点未通过，已按业务接口验证有效性")
+	}
 
 	// 2. Account resolution: /accounts, falling back to /user/memberships
 	// on 403 or empty result.
