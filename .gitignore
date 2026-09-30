@@ -1,2 +1,5 @@
-# Framework temp artifacts
+build/bin
+node_modules
+frontend/dist
 .tmp-tool-results/
+.codegraph/
