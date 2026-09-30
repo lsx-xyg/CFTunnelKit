@@ -43,4 +43,10 @@ type CFClient interface {
 	// ListZones returns the zones of an account (issue #5: hostname
 	// root-domain validation).
 	ListZones(ctx context.Context, accountID string) ([]Zone, error)
+	// ListDNSRecords lists the DNS records of a zone (issue #6).
+	ListDNSRecords(ctx context.Context, zoneID string) ([]DNSRecord, error)
+	// CreateCNAMERecord creates a CNAME record (issue #6).
+	CreateCNAMERecord(ctx context.Context, zoneID, name, target string) (DNSRecord, error)
+	// DeleteDNSRecord deletes a DNS record (issue #6).
+	DeleteDNSRecord(ctx context.Context, zoneID, recordID string) error
 }

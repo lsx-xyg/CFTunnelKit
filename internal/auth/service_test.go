@@ -23,6 +23,9 @@ type fakeClient struct {
 	ingGetFn func(ctx context.Context, accountID, tunnelID string) ([]cloudflare.IngressRule, error)
 	ingPutFn func(ctx context.Context, accountID, tunnelID string, rules []cloudflare.IngressRule) error
 	zonesFn  func(ctx context.Context, accountID string) ([]cloudflare.Zone, error)
+	dnsListFn   func(ctx context.Context, zoneID string) ([]cloudflare.DNSRecord, error)
+	dnsCreateFn func(ctx context.Context, zoneID, name, target string) (cloudflare.DNSRecord, error)
+	dnsDeleteFn func(ctx context.Context, zoneID, recordID string) error
 }
 
 func (f *fakeClient) VerifyToken(ctx context.Context) (cloudflare.TokenInfo, error) {
@@ -59,6 +62,18 @@ func (f *fakeClient) PutIngressConfig(ctx context.Context, accountID, tunnelID s
 
 func (f *fakeClient) ListZones(ctx context.Context, accountID string) ([]cloudflare.Zone, error) {
 	return f.zonesFn(ctx, accountID)
+}
+
+func (f *fakeClient) ListDNSRecords(ctx context.Context, zoneID string) ([]cloudflare.DNSRecord, error) {
+	return f.dnsListFn(ctx, zoneID)
+}
+
+func (f *fakeClient) CreateCNAMERecord(ctx context.Context, zoneID, name, target string) (cloudflare.DNSRecord, error) {
+	return f.dnsCreateFn(ctx, zoneID, name, target)
+}
+
+func (f *fakeClient) DeleteDNSRecord(ctx context.Context, zoneID, recordID string) error {
+	return f.dnsDeleteFn(ctx, zoneID, recordID)
 }
 
 func newTestService(t *testing.T, c cloudflare.CFClient) (*Service, *config.Store) {
@@ -601,5 +616,107 @@ func TestSaveIngressConfig_PutPermissionError_Passthrough(t *testing.T) {
 	}
 	if _, statErr := os.Stat(store.Path()); statErr != nil {
 		t.Error("config should NOT be cleared on permission error")
+	}
+}
+
+func TestEnsureCNAME_Created(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{
+		dnsListFn: func(ctx context.Context, zoneID string) ([]cloudflare.DNSRecord, error) {
+			return nil, nil
+		},
+		dnsCreateFn: func(ctx context.Context, zoneID, name, target string) (cloudflare.DNSRecord, error) {
+			return cloudflare.DNSRecord{ID: "r9", Type: "CNAME", Name: name, Content: target}, nil
+		},
+	}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	res, err := svc.EnsureCNAME(context.Background(), "z1", "nas", "tun1.cfargotunnel.com")
+	if err != nil {
+		t.Fatalf("EnsureCNAME: %v", err)
+	}
+	if !res.Created || res.RecordID != "r9" {
+		t.Errorf("res = %+v, want created r9", res)
+	}
+}
+
+func TestEnsureCNAME_Idempotent(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{
+		dnsListFn: func(ctx context.Context, zoneID string) ([]cloudflare.DNSRecord, error) {
+			return []cloudflare.DNSRecord{{ID: "r1", Type: "CNAME", Name: "nas", Content: "tun1.cfargotunnel.com"}}, nil
+		},
+	}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	res, err := svc.EnsureCNAME(context.Background(), "z1", "nas", "tun1.cfargotunnel.com")
+	if err != nil {
+		t.Fatalf("EnsureCNAME: %v", err)
+	}
+	if res.Created || res.RecordID != "r1" {
+		t.Errorf("res = %+v, want idempotent r1", res)
+	}
+}
+
+func TestEnsureCNAME_Taken_SurfacesMessage(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{
+		dnsListFn: func(ctx context.Context, zoneID string) ([]cloudflare.DNSRecord, error) {
+			return []cloudflare.DNSRecord{{ID: "r1", Type: "A", Name: "nas", Content: "1.2.3.4"}}, nil
+		},
+	}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	_, err := svc.EnsureCNAME(context.Background(), "z1", "nas", "tun1.cfargotunnel.com")
+	if !cloudflare.IsAPIError(err, cloudflare.KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+	if !strings.Contains(err.Error(), "已被占用，请手动处理") {
+		t.Errorf("message = %q, want 已被占用", err.Error())
+	}
+}
+
+func TestDeleteDNSByName_Deleted(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{
+		dnsListFn: func(ctx context.Context, zoneID string) ([]cloudflare.DNSRecord, error) {
+			return []cloudflare.DNSRecord{{ID: "r1", Type: "CNAME", Name: "nas", Content: "tun1.cfargotunnel.com"}}, nil
+		},
+		dnsDeleteFn: func(ctx context.Context, zoneID, recordID string) error {
+			return nil
+		},
+	}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	deleted, err := svc.DeleteDNSByName(context.Background(), "z1", "nas")
+	if err != nil {
+		t.Fatalf("DeleteDNSByName: %v", err)
+	}
+	if !deleted {
+		t.Error("deleted = false, want true")
+	}
+}
+
+func TestDeleteDNSByName_Failure_SurfacesError(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{
+		dnsListFn: func(ctx context.Context, zoneID string) ([]cloudflare.DNSRecord, error) {
+			return []cloudflare.DNSRecord{{ID: "r1", Type: "CNAME", Name: "nas", Content: "tun1.cfargotunnel.com"}}, nil
+		},
+		dnsDeleteFn: func(ctx context.Context, zoneID, recordID string) error {
+			return &cloudflare.APIError{Kind: cloudflare.KindNetwork, Message: "无法连接 Cloudflare API"}
+		},
+	}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	_, err := svc.DeleteDNSByName(context.Background(), "z1", "nas")
+	if !cloudflare.IsAPIError(err, cloudflare.KindNetwork) {
+		t.Fatalf("error = %v, want KindNetwork", err)
+	}
+}
+
+func TestListDNSRecords_OK(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{
+		dnsListFn: func(ctx context.Context, zoneID string) ([]cloudflare.DNSRecord, error) {
+			return []cloudflare.DNSRecord{{ID: "r1", Type: "CNAME", Name: "nas", Content: "tun1.cfargotunnel.com"}}, nil
+		},
+	}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	records, err := svc.ListDNSRecords(context.Background(), "z1")
+	if err != nil {
+		t.Fatalf("ListDNSRecords: %v", err)
+	}
+	if len(records) != 1 || records[0].Name != "nas" {
+		t.Errorf("records = %+v, want nas", records)
 	}
 }

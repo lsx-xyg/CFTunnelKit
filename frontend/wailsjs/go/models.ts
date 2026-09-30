@@ -43,6 +43,40 @@ export namespace auth {
 
 export namespace cloudflare {
 	
+	export class DNSEnsureResult {
+	    record_id: string;
+	    created: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DNSEnsureResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.record_id = source["record_id"];
+	        this.created = source["created"];
+	    }
+	}
+	export class DNSRecord {
+	    id: string;
+	    type: string;
+	    name: string;
+	    content: string;
+	    proxied: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DNSRecord(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.type = source["type"];
+	        this.name = source["name"];
+	        this.content = source["content"];
+	        this.proxied = source["proxied"];
+	    }
+	}
 	export class IngressRule {
 	    hostname?: string;
 	    service: string;

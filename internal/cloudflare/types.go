@@ -77,6 +77,23 @@ type IngressRule struct {
 	Service  string `json:"service"`
 }
 
+// DNSRecord is a Cloudflare DNS record (issue #6). Name is relative to the
+// zone (e.g. "nas" for nas.example.com under example.com).
+type DNSRecord struct {
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	Name    string `json:"name"`
+	Content string `json:"content"`
+	Proxied bool   `json:"proxied"`
+}
+
+// DNSEnsureResult reports the outcome of an idempotent CNAME ensure
+// (issue #6): Created=false means a CNAME already pointed at the tunnel.
+type DNSEnsureResult struct {
+	RecordID string `json:"record_id"`
+	Created  bool   `json:"created"`
+}
+
 // tunnelConfig is the wire shape of GET/PUT configurations: the ingress
 // array is nested under config (issue #5). config may be null on a tunnel
 // that was never configured.

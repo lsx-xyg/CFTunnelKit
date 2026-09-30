@@ -665,3 +665,72 @@ func TestListZones_OK(t *testing.T) {
 		t.Errorf("zones = %+v, want 2 with b.example.com", zones)
 	}
 }
+
+func TestListDNSRecords_OK(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /zones/z1/dns_records": okJSON([]map[string]interface{}{
+			{"id": "r1", "type": "CNAME", "name": "nas", "content": "tun1.cfargotunnel.com", "proxied": true},
+			{"id": "r2", "type": "A", "name": "www", "content": "1.2.3.4", "proxied": false},
+		}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	records, err := c.ListDNSRecords(context.Background(), "z1")
+	if err != nil {
+		t.Fatalf("ListDNSRecords: %v", err)
+	}
+	if len(records) != 2 || records[0].Content != "tun1.cfargotunnel.com" || !records[0].Proxied {
+		t.Errorf("records = %+v, want 2 with proxied CNAME", records)
+	}
+}
+
+func TestCreateCNAMERecord_BodyAndResult(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"POST /zones/z1/dns_records": func(w http.ResponseWriter, r *http.Request) {
+			var body map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			if body["type"] != "CNAME" || body["name"] != "nas" || body["content"] != "tun1.cfargotunnel.com" {
+				t.Errorf("body = %+v, want CNAME nas tun1.cfargotunnel.com", body)
+			}
+			if body["proxied"] != true {
+				t.Errorf("proxied = %v, want true", body["proxied"])
+			}
+			_ = json.NewEncoder(w).Encode(cfOK(map[string]interface{}{
+				"id": "r9", "type": "CNAME", "name": "nas", "content": "tun1.cfargotunnel.com", "proxied": true,
+			}))
+		},
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	rec, err := c.CreateCNAMERecord(context.Background(), "z1", "nas", "tun1.cfargotunnel.com")
+	if err != nil {
+		t.Fatalf("CreateCNAMERecord: %v", err)
+	}
+	if rec.ID != "r9" || !rec.Proxied {
+		t.Errorf("rec = %+v, want r9 proxied", rec)
+	}
+}
+
+func TestDeleteDNSRecord_OK(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"DELETE /zones/z1/dns_records/r1": okJSON(map[string]interface{}{"id": "r1"}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	if err := c.DeleteDNSRecord(context.Background(), "z1", "r1"); err != nil {
+		t.Fatalf("DeleteDNSRecord: %v", err)
+	}
+}
+
+func TestListDNSRecords_EmptyZone_OK(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /zones/z1/dns_records": okJSON([]interface{}{}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	records, err := c.ListDNSRecords(context.Background(), "z1")
+	if err != nil {
+		t.Fatalf("ListDNSRecords: %v", err)
+	}
+	if len(records) != 0 {
+		t.Errorf("records = %+v, want empty", records)
+	}
+}
