@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { GetAuthState, GetRunStates, ListTunnels, OpenLogDir, RetryVerify, StartTunnel, StopTunnel } from '../../wailsjs/go/main/App'
+import { GetAuthState, GetRunStates, ListTunnels, OpenLogDir, Quit, RetryVerify, StartTunnel, StopTunnel } from '../../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 import type { auth, cloudflare } from '../../wailsjs/go/models'
 import PermissionBadge from '../components/PermissionBadge.vue'
@@ -292,6 +292,12 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           日志目录
         </button>
         <button
+          class="ml-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          @click="Quit"
+        >
+          退出
+        </button>
+        <button
           class="ml-2 rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
           @click="showCreate = true"
         >
@@ -340,7 +346,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </span>
     </div>
 
-    <main class="flex-1 overflow-y-auto p-6">
+    <main class="flex flex-1 flex-col gap-4 overflow-hidden p-6">
       <!-- loading: skeleton rows -->
       <div v-if="loading" class="space-y-3" aria-busy="true">
         <div v-for="i in 4" :key="i" class="h-14 animate-pulse rounded-xl bg-slate-100" />
@@ -437,7 +443,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </div>
 
       <!-- slice 03: log panel -->
-      <section class="mt-4 rounded-xl border border-slate-200 bg-white" :class="logFullscreen ? 'fixed inset-4 z-40 flex flex-col' : ''">
+      <section class="flex flex-1 flex-col rounded-xl border border-slate-200 bg-white min-h-[200px]" :class="logFullscreen ? 'fixed inset-4 z-40' : ''">
         <header class="flex items-center justify-between border-b border-slate-200 px-4 py-2">
           <div class="flex items-center gap-1">
             <button
@@ -477,8 +483,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
         </header>
         <div
           ref="logBox"
-          class="overflow-y-auto bg-slate-900 px-3 py-2 font-mono text-xs leading-5 text-slate-100"
-          :class="logFullscreen ? 'flex-1' : 'h-80'"
+          class="flex-1 overflow-y-auto bg-slate-900 px-3 py-2 font-mono text-xs leading-5 text-slate-100"
         >
           <!-- runtime cloudflared logs -->
           <template v-if="logTab === 'runtime'">
@@ -493,9 +498,9 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           <!-- operation log -->
           <template v-else>
             <p v-if="opLogs.length === 0" class="text-slate-500">暂无操作记录</p>
-            <p v-for="(o, i) in opLogs" :key="i" class="whitespace-pre-wrap break-all">
-              <span class="text-slate-500">{{ logTime(o.timestamp) }}</span>
-              <span :class="o.result === 'ok' ? 'text-green-400' : 'text-red-400'"> {{ o.result === 'ok' ? 'OK' : 'FAIL' }} </span>
+            <p v-for="(o, i) in opLogs" :key="i" class="flex gap-2 whitespace-pre-wrap break-all">
+              <span class="shrink-0 text-slate-500">{{ logTime(o.timestamp) }}</span>
+              <span :class="o.result === 'ok' ? 'w-10 shrink-0 rounded bg-green-500/30 text-center text-green-300' : 'w-10 shrink-0 rounded bg-red-500/30 text-center text-red-300'">{{ o.result === 'ok' ? 'OK' : 'FAIL' }}</span>
               <span>{{ o.action }}</span>
             </p>
           </template>
