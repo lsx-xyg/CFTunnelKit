@@ -147,3 +147,21 @@ func (a *App) GetTunnelDetail(tunnelID string) (cloudflare.TunnelDetail, error) 
 func (a *App) GetTunnelToken(tunnelID string) (string, error) {
 	return a.auth.GetTunnelToken(a.ctxOrBackground(), tunnelID)
 }
+
+// ---- slice 05: ingress editor bindings ----
+
+// ListZones returns the account's zones (hostname root-domain validation).
+func (a *App) ListZones() ([]cloudflare.Zone, error) {
+	return a.auth.ListZones(a.ctxOrBackground())
+}
+
+// GetIngressConfig returns the tunnel's ingress rules (catch-all stripped).
+func (a *App) GetIngressConfig(tunnelID string) ([]cloudflare.IngressRule, error) {
+	return a.auth.GetIngressConfig(a.ctxOrBackground(), tunnelID)
+}
+
+// SaveIngressConfig runs the issue #5 save flow (PUT + read-back compare)
+// and returns the read-back rules on success.
+func (a *App) SaveIngressConfig(tunnelID string, rules []cloudflare.IngressRule) ([]cloudflare.IngressRule, error) {
+	return a.auth.SaveIngressConfig(a.ctxOrBackground(), tunnelID, rules)
+}

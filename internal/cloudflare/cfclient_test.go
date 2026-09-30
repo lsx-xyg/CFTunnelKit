@@ -570,3 +570,98 @@ func TestGetTunnelDetail_NotFound_APIError(t *testing.T) {
 		t.Fatalf("error = %v, want KindAPI", err)
 	}
 }
+
+func TestGetIngressConfig_NullConfig_EmptyList(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel/tun1/configurations": okJSON(map[string]interface{}{
+			"config": nil,
+		}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	rules, err := c.GetIngressConfig(context.Background(), "acct1", "tun1")
+	if err != nil {
+		t.Fatalf("GetIngressConfig: %v", err)
+	}
+	if len(rules) != 0 {
+		t.Errorf("rules = %+v, want empty for null config", rules)
+	}
+}
+
+func TestGetIngressConfig_StripsCatchAll(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel/tun1/configurations": okJSON(map[string]interface{}{
+			"config": map[string]interface{}{
+				"ingress": []map[string]interface{}{
+					{"hostname": "nas.example.com", "service": "http://localhost:5000"},
+					{"hostname": "*.example.com", "service": "http://localhost:5001"},
+					{"service": "http_status:404"},
+				},
+			},
+		}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	rules, err := c.GetIngressConfig(context.Background(), "acct1", "tun1")
+	if err != nil {
+		t.Fatalf("GetIngressConfig: %v", err)
+	}
+	if len(rules) != 2 {
+		t.Fatalf("rules = %+v, want 2 (catch-all stripped)", rules)
+	}
+	if rules[1].Hostname != "*.example.com" {
+		t.Errorf("rules[1] = %+v, want *.example.com", rules[1])
+	}
+}
+
+func TestPutIngressConfig_BodyNestedWithCatchAll(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"PUT /accounts/acct1/cfd_tunnel/tun1/configurations": func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPut {
+				t.Errorf("method = %s, want PUT", r.Method)
+			}
+			var body struct {
+				Config struct {
+					Ingress []IngressRule `json:"ingress"`
+				} `json:"config"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			if len(body.Config.Ingress) != 2 {
+				t.Fatalf("ingress = %+v, want 2 rules (1 + catch-all)", body.Config.Ingress)
+			}
+			last := body.Config.Ingress[1]
+			if last.Hostname != "" || last.Service != "http_status:404" {
+				t.Errorf("catch-all = %+v, want {service: http_status:404}", last)
+			}
+			_ = json.NewEncoder(w).Encode(cfOK(map[string]interface{}{"config": body.Config}))
+		},
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	if err := c.PutIngressConfig(context.Background(), "acct1", "tun1", []IngressRule{
+		{Hostname: "nas.example.com", Service: "http://localhost:5000"},
+	}); err != nil {
+		t.Fatalf("PutIngressConfig: %v", err)
+	}
+}
+
+func TestListZones_OK(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /zones": func(w http.ResponseWriter, r *http.Request) {
+			if got := r.URL.Query().Get("account.id"); got != "acct1" {
+				t.Errorf("account.id = %q, want acct1", got)
+			}
+			_ = json.NewEncoder(w).Encode(cfOK([]map[string]interface{}{
+				{"id": "z1", "name": "example.com"},
+				{"id": "z2", "name": "b.example.com"},
+			}))
+		},
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	zones, err := c.ListZones(context.Background(), "acct1")
+	if err != nil {
+		t.Fatalf("ListZones: %v", err)
+	}
+	if len(zones) != 2 || zones[1].Name != "b.example.com" {
+		t.Errorf("zones = %+v, want 2 with b.example.com", zones)
+	}
+}

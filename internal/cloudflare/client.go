@@ -33,4 +33,14 @@ type CFClient interface {
 	// GetTunnelDetail returns the full record for one tunnel, including
 	// the number of active connections.
 	GetTunnelDetail(ctx context.Context, accountID, tunnelID string) (TunnelDetail, error)
+	// GetIngressConfig returns the ingress rules of a tunnel, with the
+	// catch-all 404 rule stripped (issue #5). A never-configured tunnel
+	// (config: null) yields an empty list.
+	GetIngressConfig(ctx context.Context, accountID, tunnelID string) ([]IngressRule, error)
+	// PutIngressConfig pushes ingress rules. The catch-all 404 rule is
+	// appended automatically; the body is wrapped as {"config":{"ingress":…}}.
+	PutIngressConfig(ctx context.Context, accountID, tunnelID string, rules []IngressRule) error
+	// ListZones returns the zones of an account (issue #5: hostname
+	// root-domain validation).
+	ListZones(ctx context.Context, accountID string) ([]Zone, error)
 }

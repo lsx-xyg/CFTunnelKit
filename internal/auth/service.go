@@ -12,6 +12,7 @@ import (
 
 	"github.com/lsx-xyg/CFTunnelKit/internal/cloudflare"
 	"github.com/lsx-xyg/CFTunnelKit/internal/config"
+	"github.com/lsx-xyg/CFTunnelKit/internal/ingress"
 )
 
 // State is the serializable authentication state the frontend renders.
@@ -243,6 +244,59 @@ func (s *Service) GetTunnelDetail(ctx context.Context, tunnelID string) (cloudfl
 		return cloudflare.TunnelDetail{}, s.clearOnAuth(err)
 	}
 	return d, nil
+}
+
+// ListZones returns the account's zones (issue #5, hostname validation).
+func (s *Service) ListZones(ctx context.Context) ([]cloudflare.Zone, error) {
+	cl, accountID, err := s.authenticatedClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	zones, err := cl.ListZones(ctx, accountID)
+	if err != nil {
+		return nil, s.clearOnAuth(err)
+	}
+	return zones, nil
+}
+
+// GetIngressConfig returns the tunnel's ingress rules (catch-all stripped,
+// issue #5).
+func (s *Service) GetIngressConfig(ctx context.Context, tunnelID string) ([]cloudflare.IngressRule, error) {
+	cl, accountID, err := s.authenticatedClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rules, err := cl.GetIngressConfig(ctx, accountID, tunnelID)
+	if err != nil {
+		return nil, s.clearOnAuth(err)
+	}
+	return rules, nil
+}
+
+// SaveIngressConfig implements the issue #5 save flow: defensive validation,
+// PUT, then GET read-back compared by content+order (normalized). On
+// mismatch the user's input is preserved and "配置未生效，请重试" is returned;
+// on success the read-back data is returned so the frontend refreshes from
+// it instead of keeping stale input.
+func (s *Service) SaveIngressConfig(ctx context.Context, tunnelID string, rules []cloudflare.IngressRule) ([]cloudflare.IngressRule, error) {
+	cl, accountID, err := s.authenticatedClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if errs := ingress.Validate(rules, nil); len(errs) > 0 {
+		return nil, &cloudflare.APIError{Kind: cloudflare.KindAPI, Message: errs[0].Msg}
+	}
+	if err := cl.PutIngressConfig(ctx, accountID, tunnelID, rules); err != nil {
+		return nil, s.clearOnAuth(err)
+	}
+	got, err := cl.GetIngressConfig(ctx, accountID, tunnelID)
+	if err != nil {
+		return nil, s.clearOnAuth(err)
+	}
+	if !ingress.SameRules(rules, got) {
+		return nil, &cloudflare.APIError{Kind: cloudflare.KindAPI, Message: "配置未生效，请重试"}
+	}
+	return got, nil
 }
 
 // authenticatedClient loads the persisted config and returns a client for

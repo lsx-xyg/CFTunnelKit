@@ -420,3 +420,66 @@ func (c *client) GetTunnelDetail(ctx context.Context, accountID, tunnelID string
 		Connections: len(wire.Connections),
 	}, nil
 }
+
+// GetIngressConfig implements CFClient.GetIngressConfig (issue #5). The
+// catch-all 404 rule (no hostname) is stripped before returning; a
+// never-configured tunnel (config: null) yields an empty list.
+func (c *client) GetIngressConfig(ctx context.Context, accountID, tunnelID string) ([]IngressRule, error) {
+	if strings.TrimSpace(accountID) == "" || strings.TrimSpace(tunnelID) == "" {
+		return nil, &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
+	}
+	var cfg tunnelConfig
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s/configurations", accountID, tunnelID)
+	if err := c.getJSON(ctx, path, &cfg, "Tunnel:Edit"); err != nil {
+		return nil, err
+	}
+	if cfg.Config == nil {
+		return []IngressRule{}, nil
+	}
+	rules := make([]IngressRule, 0, len(cfg.Config.Ingress))
+	for _, r := range cfg.Config.Ingress {
+		if strings.TrimSpace(r.Hostname) == "" {
+			continue // strip the catch-all rule
+		}
+		rules = append(rules, r)
+	}
+	return rules, nil
+}
+
+// PutIngressConfig implements CFClient.PutIngressConfig (issue #5). The
+// catch-all 404 rule is appended automatically and the body is wrapped as
+// {"config":{"ingress":[…]}}.
+func (c *client) PutIngressConfig(ctx context.Context, accountID, tunnelID string, rules []IngressRule) error {
+	if strings.TrimSpace(accountID) == "" || strings.TrimSpace(tunnelID) == "" {
+		return &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
+	}
+	ingress := make([]IngressRule, 0, len(rules)+1)
+	ingress = append(ingress, rules...)
+	ingress = append(ingress, IngressRule{Service: "http_status:404"})
+	body, err := json.Marshal(tunnelConfig{Config: &struct {
+		Ingress []IngressRule `json:"ingress"`
+	}{Ingress: ingress}})
+	if err != nil {
+		return &APIError{Kind: KindNetwork, Message: "无法连接 Cloudflare API", Cause: err}
+	}
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s/configurations", accountID, tunnelID)
+	return c.putJSON(ctx, path, body, "Tunnel:Edit")
+}
+
+// ListZones implements CFClient.ListZones (issue #5).
+func (c *client) ListZones(ctx context.Context, accountID string) ([]Zone, error) {
+	if strings.TrimSpace(accountID) == "" {
+		return nil, &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
+	}
+	var zones []Zone
+	path := "/zones?account.id=" + accountID
+	if err := c.getJSON(ctx, path, &zones, "Zone:Read"); err != nil {
+		return nil, err
+	}
+	return zones, nil
+}
+
+// putJSON performs a PUT with a JSON body.
+func (c *client) putJSON(ctx context.Context, path string, body []byte, perm string) error {
+	return c.doJSON(ctx, http.MethodPut, path, body, nil, perm)
+}
