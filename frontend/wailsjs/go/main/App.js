@@ -85,3 +85,7 @@ export function StopTunnel(arg1) {
 export function VerifyAndSaveToken(arg1) {
   return window['go']['main']['App']['VerifyAndSaveToken'](arg1);
 }
+
+export function WriteOpLog(arg1, arg2) {
+  return window['go']['main']['App']['WriteOpLog'](arg1, arg2);
+}

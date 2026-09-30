@@ -44,3 +44,5 @@ export function StopAllTunnels():Promise<void>;
 export function StopTunnel(arg1:string):Promise<void>;
 
 export function VerifyAndSaveToken(arg1:string):Promise<cloudflare.TokenInfo>;
+
+export function WriteOpLog(arg1:string,arg2:string):Promise<void>;

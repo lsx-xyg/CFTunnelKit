@@ -240,3 +240,8 @@ func (a *App) OpenLogDir() {
 	}
 	_ = cmd.Start()
 }
+
+// WriteOpLog appends an operation record to operation.log.
+func (a *App) WriteOpLog(action, result string) {
+	applog.OpLog(action, result)
+}

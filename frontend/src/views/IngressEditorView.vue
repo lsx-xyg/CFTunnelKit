@@ -222,16 +222,16 @@ async function save() {
     snapshot = JSON.stringify(got.map(norm))
     savedHosts = newHosts
     showToast('配置已保存')
-    // issue #6: offer DNS link for added / removed hostnames
-    if (zones.value.length > 0) {
-      const create = newHosts.filter((h) => !oldHosts.includes(h))
-      const remove = oldHosts.filter((h) => !newHosts.includes(h))
-      if (create.length || remove.length) {
-        dnsPrompt.value = { create, remove }
-        dnsCreateChecked.value = create.length > 0
-        dnsRemoveChecked.value = remove.length > 0
-      }
+    // issue #6: offer DNS link for added / removed hostnames.
+    // Always prompt (even if zones failed to load) so the user knows.
+    const create = newHosts.filter((h) => !oldHosts.includes(h))
+    const remove = oldHosts.filter((h) => !newHosts.includes(h))
+    if (create.length || remove.length) {
+      dnsPrompt.value = { create, remove }
+      dnsCreateChecked.value = create.length > 0
+      dnsRemoveChecked.value = remove.length > 0
     }
+    console.log('[Ingress save] oldHosts=', oldHosts, 'newHosts=', newHosts, 'create=', create, 'remove=', remove, 'zones=', zones.value)
   } catch (e) {
     // PUT failed or read-back mismatch → keep user input, show the error
     saveError.value = String(e)
@@ -321,8 +321,10 @@ onMounted(load)
               <span class="w-6 text-center text-xs font-semibold text-slate-400">{{ i + 1 }}</span>
               <input
                 v-model="r.hostname"
-                placeholder="hostname，如 nas.example.com 或 *.example.com"
-                class="flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="hostname，如 nas.example.com"
+                disabled
+                class="flex-1 rounded-md border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm text-slate-500 cursor-not-allowed"
+                title="域名不可修改，请删除后重新添加"
               />
               <span class="text-slate-400">→</span>
               <input

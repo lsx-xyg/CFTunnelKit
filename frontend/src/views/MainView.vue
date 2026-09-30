@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { GetAuthState, GetRunStates, ListTunnels, OpenLogDir, RetryVerify, StartTunnel, StopTunnel } from '../../wailsjs/go/main/App'
-import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
+import { GetAuthState, GetRunStates, ListTunnels, OpenLogDir, RetryVerify, StartTunnel, StopTunnel, WriteOpLog } from '../../wailsjs/go/main/App'
+import { EventsOn, EventsOff, EventsEmit } from '../../wailsjs/runtime/runtime'
 import type { auth, cloudflare } from '../../wailsjs/go/models'
 import PermissionBadge from '../components/PermissionBadge.vue'
 import TunnelStatusBadge from '../components/TunnelStatusBadge.vue'
@@ -28,7 +28,7 @@ interface DownloadPayload {
 }
 
 const props = defineProps<{ state: auth.State }>()
-const emit = defineEmits<{ (e: 'refresh'): void; (e: 'session-expired'): void }>()
+const emit = defineEmits<{ (e: 'refresh'): void; (e: 'session-expired'): void; (e: 'toggle-log'): void }>()
 
 const retrying = ref(false)
 const loading = ref(false)
@@ -68,6 +68,8 @@ const opLogs = ref<OpLog[]>([])
 function pushOp(action: string, result: 'ok' | 'fail') {
   opLogs.value.push({ timestamp: Date.now(), action, result })
   if (opLogs.value.length > 500) opLogs.value.splice(0, opLogs.value.length - 500)
+  WriteOpLog(action, result)
+  EventsEmit('app:op', { action, result })
 }
 
 function openIngress(t: cloudflare.Tunnel) {
@@ -93,13 +95,21 @@ function onDeleted() {
 // dropped first.
 const logLines = ref<LogPayload[]>([])
 const logFilter = ref('')
+const logSearch = ref('')
+const logLevelFilter = ref('')
 const logBox = ref<HTMLElement | null>(null)
 
 const runningTunnels = computed(() => tunnels.value.filter((t) => runStates.value[t.id] === 'running'))
 
 const visibleLogs = computed(() => {
-  if (!logFilter.value) return logLines.value
-  return logLines.value.filter((l) => l.tunnel_id === logFilter.value)
+  let out = logLines.value
+  if (logFilter.value) out = out.filter((l) => l.tunnel_id === logFilter.value)
+  if (logLevelFilter.value) out = out.filter((l) => l.level === logLevelFilter.value)
+  if (logSearch.value) {
+    const q = logSearch.value.toLowerCase()
+    out = out.filter((l) => l.line.toLowerCase().includes(q))
+  }
+  return out
 })
 
 function pushLog(p: LogPayload) {
@@ -298,6 +308,12 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           日志目录
         </button>
         <button
+          class="ml-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          @click="emit('toggle-log')"
+        >
+          终端
+        </button>
+        <button
           class="ml-2 rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
           @click="showCreate = true"
         >
@@ -376,24 +392,24 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
 
       <!-- tunnel list -->
       <div v-else class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <table class="min-w-full divide-y divide-slate-200 text-xs">
           <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th class="px-5 py-3 font-medium">名称</th>
-              <th class="px-5 py-3 font-medium">状态</th>
-              <th class="px-5 py-3 font-medium">运行</th>
-              <th class="px-5 py-3 font-medium">Tunnel ID</th>
-              <th class="px-5 py-3 font-medium">创建时间</th>
-              <th class="px-5 py-3 font-medium">操作</th>
+              <th class="px-4 py-2.5 font-medium">名称</th>
+              <th class="px-4 py-2.5 font-medium">状态</th>
+              <th class="px-4 py-2.5 font-medium">运行</th>
+              <th class="px-4 py-2.5 font-medium">Tunnel ID</th>
+              <th class="px-4 py-2.5 font-medium">创建时间</th>
+              <th class="px-4 py-2.5 font-medium">操作</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
             <tr v-for="t in tunnels" :key="t.id" class="hover:bg-slate-50">
-              <td class="px-5 py-3 font-medium text-slate-900">{{ t.name }}</td>
-              <td class="px-5 py-3">
+              <td class="px-4 py-2.5 font-medium text-slate-900">{{ t.name }}</td>
+              <td class="px-4 py-2.5">
                 <TunnelStatusBadge :status="t.status" />
               </td>
-              <td class="px-5 py-3">
+              <td class="px-4 py-2.5">
                 <span
                   class="inline-flex items-center gap-1.5 text-xs"
                   :class="runStates[t.id] === 'running' ? 'text-green-700' : runStates[t.id] === 'error' ? 'text-red-700' : 'text-slate-400'"
@@ -405,9 +421,9 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
                   {{ runStates[t.id] === 'running' ? '运行中' : runStates[t.id] === 'error' ? '异常退出' : '未运行' }}
                 </span>
               </td>
-              <td class="px-5 py-3 font-mono text-xs text-slate-500">{{ t.id }}</td>
-              <td class="px-5 py-3 text-slate-500">{{ fmtTime(t.created_at) }}</td>
-              <td class="px-5 py-3 whitespace-nowrap">
+              <td class="px-4 py-2.5 font-mono text-xs text-slate-500">{{ t.id }}</td>
+              <td class="px-4 py-2.5 text-slate-500">{{ fmtTime(t.created_at) }}</td>
+              <td class="px-4 py-2.5 whitespace-nowrap">
                 <button
                   class="mr-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   @click="openIngress(t)"
@@ -442,70 +458,6 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
         </table>
       </div>
 
-      <!-- slice 03: log panel -->
-      <section class="flex flex-1 flex-col rounded-xl border border-slate-200 bg-white min-h-[200px]" :class="logFullscreen ? 'fixed inset-4 z-40' : ''">
-        <header class="flex items-center justify-between border-b border-slate-200 px-4 py-2">
-          <div class="flex items-center gap-1">
-            <button
-              class="rounded px-2 py-1 text-xs font-medium"
-              :class="logTab === 'runtime' ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:text-slate-700'"
-              @click="logTab = 'runtime'"
-            >
-              运行日志
-            </button>
-            <button
-              class="rounded px-2 py-1 text-xs font-medium"
-              :class="logTab === 'ops' ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:text-slate-700'"
-              @click="logTab = 'ops'"
-            >
-              操作记录
-            </button>
-          </div>
-          <div class="flex items-center gap-2">
-            <select
-              v-if="logTab === 'runtime'"
-              v-model="logFilter"
-              class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600"
-            >
-              <option value="">全部 Tunnel</option>
-              <option v-for="t in runningTunnels" :key="t.id" :value="t.id">{{ t.name }}</option>
-            </select>
-            <span class="text-xs text-slate-400">
-              {{ logTab === 'runtime' ? visibleLogs.length + ' 行' : opLogs.length + ' 条' }}
-            </span>
-            <button
-              class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-              @click="logFullscreen = !logFullscreen"
-            >
-              {{ logFullscreen ? '退出全屏' : '全屏' }}
-            </button>
-          </div>
-        </header>
-        <div
-          ref="logBox"
-          class="flex-1 overflow-y-auto bg-slate-900 px-3 py-2 font-mono text-xs leading-5 text-slate-100"
-        >
-          <!-- runtime cloudflared logs -->
-          <template v-if="logTab === 'runtime'">
-            <p v-if="visibleLogs.length === 0" class="text-slate-500">暂无日志 — 启动 Tunnel 后实时输出将显示在这里</p>
-            <p v-for="(l, i) in visibleLogs" :key="i" class="flex gap-2 whitespace-pre-wrap break-all">
-              <span class="shrink-0 text-slate-500">{{ logTime(l.timestamp) }}</span>
-              <span :class="logLevelBadgeClass(l.level)" class="w-10 shrink-0 rounded text-center">{{ logLevelLabel(l.level) }}</span>
-              <span v-if="logFilter" class="shrink-0 text-slate-500">{{ tunnelName(l.tunnel_id) }}:</span>
-              <span class="break-all">{{ l.line }}</span>
-            </p>
-          </template>
-          <!-- operation log -->
-          <template v-else>
-            <p v-if="opLogs.length === 0" class="text-slate-500">暂无操作记录</p>
-            <p v-for="(o, i) in opLogs" :key="i" class="flex gap-2 whitespace-pre-wrap break-all">
-              <span class="shrink-0 text-slate-500">{{ logTime(o.timestamp) }}</span>
-              <span :class="o.result === 'ok' ? 'w-10 shrink-0 rounded bg-green-500/30 text-center text-green-300' : 'w-10 shrink-0 rounded bg-red-500/30 text-center text-red-300'">{{ o.result === 'ok' ? 'OK' : 'FAIL' }}</span>
-              <span>{{ o.action }}</span>
-            </p>
-          </template>
-        </div>
-      </section>
     </main>
 
     <!-- slice 04: dialogs -->
