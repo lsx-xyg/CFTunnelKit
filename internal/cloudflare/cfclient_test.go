@@ -111,6 +111,51 @@ func TestVerifyToken_ValidToken_AllPermissionsOK(t *testing.T) {
 func TestVerifyToken_InvalidToken_401(t *testing.T) {
 	srv := newTestServer(t, map[string]http.HandlerFunc{
 		"GET /user/tokens/verify": cfErr(http.StatusUnauthorized),
+		"GET /accounts":           cfErr(http.StatusUnauthorized),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	_, err := c.VerifyToken(context.Background())
+	if !IsAPIError(err, KindAuth) {
+		t.Fatalf("error = %v, want KindAuth", err)
+	}
+	if !strings.Contains(err.Error(), "Token 无效或已失效") {
+		t.Errorf("message = %q, want to contain 无效或已失效", err.Error())
+	}
+}
+
+// TestVerifyToken_Verify401ButBusinessAPIsWorked reproduces the cfat_
+// new-format token case: /user/tokens/verify returns 401 but /accounts,
+// /zones and cfd_tunnel all succeed. The app must accept the token.
+func TestVerifyToken_Verify401ButBusinessAPIsWorked(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /user/tokens/verify":        cfErr(http.StatusUnauthorized),
+		"GET /accounts":                   okJSON([]map[string]interface{}{{"id": "acct1", "name": "Acct"}}),
+		"GET /accounts/acct1/cfd_tunnel": okJSON([]interface{}{}),
+		"GET /zones":                      okJSON([]map[string]interface{}{{"id": "zone1", "name": "example.com"}}),
+		"GET /zones/zone1/dns_records":    okJSON([]interface{}{}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	info, err := c.VerifyToken(context.Background())
+	if err != nil {
+		t.Fatalf("expected token accepted despite verify 401, got: %v", err)
+	}
+	if info.AccountID != "acct1" {
+		t.Errorf("AccountID = %q, want acct1", info.AccountID)
+	}
+	if info.Permissions.TunnelEdit != PermissionOK || info.Permissions.ZoneRead != PermissionOK || info.Permissions.DNSEdit != PermissionOK {
+		t.Errorf("permissions = %+v, want all ok", info.Permissions)
+	}
+	if len(info.Warnings) == 0 {
+		t.Error("want a soft-fail warning about the self-check endpoint")
+	}
+}
+
+// TestVerifyToken_Verify401AndAccounts401: a truly invalid token fails on
+// both the self-check and the business API — must still be rejected.
+func TestVerifyToken_Verify401AndAccounts401(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /user/tokens/verify": cfErr(http.StatusUnauthorized),
+		"GET /accounts":            cfErr(http.StatusUnauthorized),
 	})
 	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
 	_, err := c.VerifyToken(context.Background())
