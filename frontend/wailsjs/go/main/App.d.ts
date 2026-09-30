@@ -9,6 +9,8 @@ export function DeleteTunnel(arg1:string):Promise<void>;
 
 export function GetAuthState():Promise<auth.State>;
 
+export function GetIngressConfig(arg1:string):Promise<Array<cloudflare.IngressRule>>;
+
 export function GetRunStates():Promise<Record<string, string>>;
 
 export function GetTunnelDetail(arg1:string):Promise<cloudflare.TunnelDetail>;
@@ -17,7 +19,11 @@ export function GetTunnelToken(arg1:string):Promise<string>;
 
 export function ListTunnels():Promise<Array<cloudflare.Tunnel>>;
 
+export function ListZones():Promise<Array<cloudflare.Zone>>;
+
 export function RetryVerify():Promise<cloudflare.TokenInfo>;
+
+export function SaveIngressConfig(arg1:string,arg2:Array<cloudflare.IngressRule>):Promise<Array<cloudflare.IngressRule>>;
 
 export function StartTunnel(arg1:string):Promise<void>;
 

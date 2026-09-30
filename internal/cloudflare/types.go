@@ -69,3 +69,19 @@ type Zone struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
+
+// IngressRule maps a public hostname to a local service
+// (issue #5, ingress rules). The catch-all 404 rule has no hostname.
+type IngressRule struct {
+	Hostname string `json:"hostname,omitempty"`
+	Service  string `json:"service"`
+}
+
+// tunnelConfig is the wire shape of GET/PUT configurations: the ingress
+// array is nested under config (issue #5). config may be null on a tunnel
+// that was never configured.
+type tunnelConfig struct {
+	Config *struct {
+		Ingress []IngressRule `json:"ingress"`
+	} `json:"config"`
+}

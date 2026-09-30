@@ -20,6 +20,9 @@ type fakeClient struct {
 	createFn func(ctx context.Context, accountID, name string) (cloudflare.Tunnel, error)
 	deleteFn func(ctx context.Context, accountID, tunnelID string) error
 	detailFn func(ctx context.Context, accountID, tunnelID string) (cloudflare.TunnelDetail, error)
+	ingGetFn func(ctx context.Context, accountID, tunnelID string) ([]cloudflare.IngressRule, error)
+	ingPutFn func(ctx context.Context, accountID, tunnelID string, rules []cloudflare.IngressRule) error
+	zonesFn  func(ctx context.Context, accountID string) ([]cloudflare.Zone, error)
 }
 
 func (f *fakeClient) VerifyToken(ctx context.Context) (cloudflare.TokenInfo, error) {
@@ -44,6 +47,18 @@ func (f *fakeClient) DeleteTunnel(ctx context.Context, accountID, tunnelID strin
 
 func (f *fakeClient) GetTunnelDetail(ctx context.Context, accountID, tunnelID string) (cloudflare.TunnelDetail, error) {
 	return f.detailFn(ctx, accountID, tunnelID)
+}
+
+func (f *fakeClient) GetIngressConfig(ctx context.Context, accountID, tunnelID string) ([]cloudflare.IngressRule, error) {
+	return f.ingGetFn(ctx, accountID, tunnelID)
+}
+
+func (f *fakeClient) PutIngressConfig(ctx context.Context, accountID, tunnelID string, rules []cloudflare.IngressRule) error {
+	return f.ingPutFn(ctx, accountID, tunnelID, rules)
+}
+
+func (f *fakeClient) ListZones(ctx context.Context, accountID string) ([]cloudflare.Zone, error) {
+	return f.zonesFn(ctx, accountID)
 }
 
 func newTestService(t *testing.T, c cloudflare.CFClient) (*Service, *config.Store) {
@@ -475,5 +490,116 @@ func TestGetTunnelDetail_Success(t *testing.T) {
 	}
 	if d.Connections != 2 || d.Name != "tunnel-a" {
 		t.Errorf("detail = %+v, want tunnel-a/2 connections", d)
+	}
+}
+
+func TestListZones_Success(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{zonesFn: func(ctx context.Context, accountID string) ([]cloudflare.Zone, error) {
+		return []cloudflare.Zone{{ID: "z1", Name: "example.com"}}, nil
+	}}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	zones, err := svc.ListZones(context.Background())
+	if err != nil {
+		t.Fatalf("ListZones: %v", err)
+	}
+	if len(zones) != 1 || zones[0].Name != "example.com" {
+		t.Errorf("zones = %+v, want example.com", zones)
+	}
+}
+
+func TestGetIngressConfig_Success_StripsCatchAll(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{ingGetFn: func(ctx context.Context, accountID, tunnelID string) ([]cloudflare.IngressRule, error) {
+		return []cloudflare.IngressRule{{Hostname: "nas.example.com", Service: "http://localhost:5000"}}, nil
+	}}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	rules, err := svc.GetIngressConfig(context.Background(), "tun1")
+	if err != nil {
+		t.Fatalf("GetIngressConfig: %v", err)
+	}
+	if len(rules) != 1 || rules[0].Hostname != "nas.example.com" {
+		t.Errorf("rules = %+v, want nas.example.com", rules)
+	}
+}
+
+func TestSaveIngressConfig_Success_ReturnsReadBack(t *testing.T) {
+	var putCalled, getCalled bool
+	fc := &fakeClient{
+		ingPutFn: func(ctx context.Context, accountID, tunnelID string, rules []cloudflare.IngressRule) error {
+			putCalled = true
+			if len(rules) != 1 {
+				t.Errorf("put rules = %+v, want 1", rules)
+			}
+			return nil
+		},
+		ingGetFn: func(ctx context.Context, accountID, tunnelID string) ([]cloudflare.IngressRule, error) {
+			getCalled = true
+			return []cloudflare.IngressRule{{Hostname: "nas.example.com", Service: "http://localhost:5000"}}, nil
+		},
+	}
+	svc, _ := newListService(t, fc, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	got, err := svc.SaveIngressConfig(context.Background(), "tun1", []cloudflare.IngressRule{
+		{Hostname: "nas.example.com", Service: "http://localhost:5000"},
+	})
+	if err != nil {
+		t.Fatalf("SaveIngressConfig: %v", err)
+	}
+	if !putCalled || !getCalled {
+		t.Errorf("put=%v get=%v, want both called", putCalled, getCalled)
+	}
+	if len(got) != 1 || got[0].Hostname != "nas.example.com" {
+		t.Errorf("got = %+v, want read-back data", got)
+	}
+}
+
+func TestSaveIngressConfig_ReadBackMismatch_ErrorPreservesInput(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{
+		ingPutFn: func(ctx context.Context, accountID, tunnelID string, rules []cloudflare.IngressRule) error {
+			return nil
+		},
+		ingGetFn: func(ctx context.Context, accountID, tunnelID string) ([]cloudflare.IngressRule, error) {
+			// Cloudflare dropped one rule → mismatch
+			return nil, nil
+		},
+	}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	_, err := svc.SaveIngressConfig(context.Background(), "tun1", []cloudflare.IngressRule{
+		{Hostname: "nas.example.com", Service: "http://localhost:5000"},
+	})
+	if !cloudflare.IsAPIError(err, cloudflare.KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+	if !strings.Contains(err.Error(), "配置未生效，请重试") {
+		t.Errorf("message = %q, want 配置未生效", err.Error())
+	}
+}
+
+func TestSaveIngressConfig_EmptyRules_Rejected(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	_, err := svc.SaveIngressConfig(context.Background(), "tun1", nil)
+	if !cloudflare.IsAPIError(err, cloudflare.KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+	if !strings.Contains(err.Error(), "至少需要一条规则") {
+		t.Errorf("message = %q, want 至少需要一条规则", err.Error())
+	}
+}
+
+func TestSaveIngressConfig_PutPermissionError_Passthrough(t *testing.T) {
+	svc, store := newListService(t, &fakeClient{
+		ingPutFn: func(ctx context.Context, accountID, tunnelID string, rules []cloudflare.IngressRule) error {
+			return &cloudflare.APIError{Kind: cloudflare.KindPermission, Message: "缺少 Tunnel:Edit 权限"}
+		},
+	}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	_, err := svc.SaveIngressConfig(context.Background(), "tun1", []cloudflare.IngressRule{
+		{Hostname: "nas.example.com", Service: "http://localhost:5000"},
+	})
+	if !cloudflare.IsAPIError(err, cloudflare.KindPermission) {
+		t.Fatalf("error = %v, want KindPermission", err)
+	}
+	if _, statErr := os.Stat(store.Path()); statErr != nil {
+		t.Error("config should NOT be cleared on permission error")
 	}
 }

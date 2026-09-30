@@ -7,6 +7,7 @@ import PermissionBadge from '../components/PermissionBadge.vue'
 import TunnelStatusBadge from '../components/TunnelStatusBadge.vue'
 import CreateTunnelDialog from '../components/CreateTunnelDialog.vue'
 import TunnelDetailDialog from '../components/TunnelDetailDialog.vue'
+import IngressEditorView from './IngressEditorView.vue'
 
 interface LogPayload {
   timestamp: number
@@ -48,6 +49,15 @@ let toastTimer: number | undefined
 // --- slice 04: create / detail dialogs ---
 const showCreate = ref(false)
 const detailTunnelId = ref<string | null>(null)
+
+// --- slice 05: ingress editor (full-screen overlay) ---
+const ingressTunnelId = ref<string | null>(null)
+const ingressTunnelName = ref('')
+
+function openIngress(t: cloudflare.Tunnel) {
+  ingressTunnelId.value = t.id
+  ingressTunnelName.value = t.name
+}
 
 function onCreated() {
   showCreate.value = false
@@ -345,6 +355,12 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
               <td class="px-5 py-3">
                 <button
                   class="mr-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  @click="openIngress(t)"
+                >
+                  Ingress
+                </button>
+                <button
+                  class="mr-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                   @click="detailTunnelId = t.id"
                 >
                   详情
@@ -409,6 +425,15 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       @close="detailTunnelId = null"
       @deleted="onDeleted"
     />
+
+    <!-- slice 05: ingress editor overlay -->
+    <div v-if="ingressTunnelId" class="fixed inset-0 z-50 bg-slate-100">
+      <IngressEditorView
+        :tunnel-id="ingressTunnelId"
+        :tunnel-name="ingressTunnelName"
+        @back="ingressTunnelId = null"
+      />
+    </div>
 
     <!-- toast -->
     <div

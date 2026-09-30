@@ -43,6 +43,20 @@ export namespace auth {
 
 export namespace cloudflare {
 	
+	export class IngressRule {
+	    hostname?: string;
+	    service: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new IngressRule(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hostname = source["hostname"];
+	        this.service = source["service"];
+	    }
+	}
 	export class Permissions {
 	    tunnel_edit: string;
 	    zone_read: string;
@@ -174,6 +188,20 @@ export namespace cloudflare {
 		    }
 		    return a;
 		}
+	}
+	export class Zone {
+	    id: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Zone(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	    }
 	}
 
 }

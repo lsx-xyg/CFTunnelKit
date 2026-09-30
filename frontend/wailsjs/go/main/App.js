@@ -14,6 +14,10 @@ export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
 }
 
+export function GetIngressConfig(arg1) {
+  return window['go']['main']['App']['GetIngressConfig'](arg1);
+}
+
 export function GetRunStates() {
   return window['go']['main']['App']['GetRunStates']();
 }
@@ -30,8 +34,16 @@ export function ListTunnels() {
   return window['go']['main']['App']['ListTunnels']();
 }
 
+export function ListZones() {
+  return window['go']['main']['App']['ListZones']();
+}
+
 export function RetryVerify() {
   return window['go']['main']['App']['RetryVerify']();
+}
+
+export function SaveIngressConfig(arg1, arg2) {
+  return window['go']['main']['App']['SaveIngressConfig'](arg1, arg2);
 }
 
 export function StartTunnel(arg1) {
