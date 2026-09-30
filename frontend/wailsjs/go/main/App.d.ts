@@ -13,8 +13,6 @@ export function EnsureCNAME(arg1:string,arg2:string,arg3:string):Promise<cloudfl
 
 export function GetAuthState():Promise<auth.State>;
 
-export function GetProxy():Promise<string>;
-
 export function GetIngressConfig(arg1:string):Promise<Array<cloudflare.IngressRule>>;
 
 export function GetRunStates():Promise<Record<string, string>>;
@@ -36,8 +34,6 @@ export function OpenLogDir():Promise<void>;
 export function RetryVerify():Promise<cloudflare.TokenInfo>;
 
 export function SaveIngressConfig(arg1:string,arg2:Array<cloudflare.IngressRule>):Promise<Array<cloudflare.IngressRule>>;
-
-export function SetProxy(arg1:string):Promise<void>;
 
 export function StartTunnel(arg1:string):Promise<void>;
 
