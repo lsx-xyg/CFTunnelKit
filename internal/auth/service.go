@@ -12,6 +12,7 @@ import (
 
 	"github.com/lsx-xyg/CFTunnelKit/internal/cloudflare"
 	"github.com/lsx-xyg/CFTunnelKit/internal/config"
+	"github.com/lsx-xyg/CFTunnelKit/internal/dns"
 	"github.com/lsx-xyg/CFTunnelKit/internal/ingress"
 )
 
@@ -297,6 +298,51 @@ func (s *Service) SaveIngressConfig(ctx context.Context, tunnelID string, rules 
 		return nil, &cloudflare.APIError{Kind: cloudflare.KindAPI, Message: "配置未生效，请重试"}
 	}
 	return got, nil
+}
+
+// ListDNSRecords returns the DNS records of a zone (issue #6).
+func (s *Service) ListDNSRecords(ctx context.Context, zoneID string) ([]cloudflare.DNSRecord, error) {
+	cl, _, err := s.authenticatedClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	records, err := cl.ListDNSRecords(ctx, zoneID)
+	if err != nil {
+		return nil, s.clearOnAuth(err)
+	}
+	return records, nil
+}
+
+// EnsureCNAME idempotently creates a CNAME for name → target (issue #6).
+// A same-name record pointing elsewhere (or a non-CNAME record) yields the
+// "域名 xxx 已被占用，请手动处理" message and never overwrites.
+func (s *Service) EnsureCNAME(ctx context.Context, zoneID, name, target string) (cloudflare.DNSEnsureResult, error) {
+	cl, _, err := s.authenticatedClient(ctx)
+	if err != nil {
+		return cloudflare.DNSEnsureResult{}, err
+	}
+	res, err := dns.EnsureCNAME(ctx, cl, zoneID, name, target)
+	if err != nil {
+		if errors.Is(err, dns.ErrTaken) {
+			return cloudflare.DNSEnsureResult{}, &cloudflare.APIError{Kind: cloudflare.KindAPI, Message: err.Error()}
+		}
+		return cloudflare.DNSEnsureResult{}, s.clearOnAuth(err)
+	}
+	return res, nil
+}
+
+// DeleteDNSByName removes the DNS record matching name in the zone
+// (issue #6 delete link). Missing records are an idempotent success.
+func (s *Service) DeleteDNSByName(ctx context.Context, zoneID, name string) (bool, error) {
+	cl, _, err := s.authenticatedClient(ctx)
+	if err != nil {
+		return false, err
+	}
+	deleted, err := dns.DeleteByName(ctx, cl, zoneID, name)
+	if err != nil {
+		return false, s.clearOnAuth(err)
+	}
+	return deleted, nil
 }
 
 // authenticatedClient loads the persisted config and returns a client for

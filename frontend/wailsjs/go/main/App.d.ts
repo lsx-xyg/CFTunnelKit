@@ -5,7 +5,11 @@ import {auth} from '../models';
 
 export function CreateTunnel(arg1:string):Promise<cloudflare.Tunnel>;
 
+export function DeleteDNSByName(arg1:string,arg2:string):Promise<boolean>;
+
 export function DeleteTunnel(arg1:string):Promise<void>;
+
+export function EnsureCNAME(arg1:string,arg2:string,arg3:string):Promise<cloudflare.DNSEnsureResult>;
 
 export function GetAuthState():Promise<auth.State>;
 
@@ -16,6 +20,8 @@ export function GetRunStates():Promise<Record<string, string>>;
 export function GetTunnelDetail(arg1:string):Promise<cloudflare.TunnelDetail>;
 
 export function GetTunnelToken(arg1:string):Promise<string>;
+
+export function ListDNSRecords(arg1:string):Promise<Array<cloudflare.DNSRecord>>;
 
 export function ListTunnels():Promise<Array<cloudflare.Tunnel>>;
 

@@ -165,3 +165,22 @@ func (a *App) GetIngressConfig(tunnelID string) ([]cloudflare.IngressRule, error
 func (a *App) SaveIngressConfig(tunnelID string, rules []cloudflare.IngressRule) ([]cloudflare.IngressRule, error) {
 	return a.auth.SaveIngressConfig(a.ctxOrBackground(), tunnelID, rules)
 }
+
+// ---- slice 06: DNS link bindings ----
+
+// ListDNSRecords returns the DNS records of a zone (issue #6).
+func (a *App) ListDNSRecords(zoneID string) ([]cloudflare.DNSRecord, error) {
+	return a.auth.ListDNSRecords(a.ctxOrBackground(), zoneID)
+}
+
+// EnsureCNAME idempotently creates a CNAME name → target (issue #6).
+// Conflicts surface as "域名 xxx 已被占用，请手动处理" and never overwrite.
+func (a *App) EnsureCNAME(zoneID, name, target string) (cloudflare.DNSEnsureResult, error) {
+	return a.auth.EnsureCNAME(a.ctxOrBackground(), zoneID, name, target)
+}
+
+// DeleteDNSByName removes the DNS record matching name in the zone
+// (issue #6 delete link). Missing records are an idempotent success.
+func (a *App) DeleteDNSByName(zoneID, name string) (bool, error) {
+	return a.auth.DeleteDNSByName(a.ctxOrBackground(), zoneID, name)
+}

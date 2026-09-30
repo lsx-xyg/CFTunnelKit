@@ -479,6 +479,54 @@ func (c *client) ListZones(ctx context.Context, accountID string) ([]Zone, error
 	return zones, nil
 }
 
+// ListDNSRecords implements CFClient.ListDNSRecords (issue #6).
+func (c *client) ListDNSRecords(ctx context.Context, zoneID string) ([]DNSRecord, error) {
+	if strings.TrimSpace(zoneID) == "" {
+		return nil, &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
+	}
+	var records []DNSRecord
+	path := "/zones/" + zoneID + "/dns_records"
+	if err := c.getJSON(ctx, path, &records, "DNS:Edit"); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+// CreateCNAMERecord implements CFClient.CreateCNAMERecord (issue #6). The
+// record is proxied by default so traffic flows through Cloudflare.
+func (c *client) CreateCNAMERecord(ctx context.Context, zoneID, name, target string) (DNSRecord, error) {
+	if strings.TrimSpace(zoneID) == "" {
+		return DNSRecord{}, &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
+	}
+	body, err := json.Marshal(map[string]interface{}{
+		"type":    "CNAME",
+		"name":    name,
+		"content": target,
+		"proxied": true,
+	})
+	if err != nil {
+		return DNSRecord{}, &APIError{Kind: KindNetwork, Message: "无法连接 Cloudflare API", Cause: err}
+	}
+	var rec DNSRecord
+	path := "/zones/" + zoneID + "/dns_records"
+	if err := c.postJSON(ctx, path, body, &rec, "DNS:Edit"); err != nil {
+		return DNSRecord{}, err
+	}
+	return rec, nil
+}
+
+// DeleteDNSRecord implements CFClient.DeleteDNSRecord (issue #6).
+func (c *client) DeleteDNSRecord(ctx context.Context, zoneID, recordID string) error {
+	if strings.TrimSpace(zoneID) == "" || strings.TrimSpace(recordID) == "" {
+		return &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
+	}
+	var out struct {
+		ID string `json:"id"`
+	}
+	path := "/zones/" + zoneID + "/dns_records/" + recordID
+	return c.deleteJSON(ctx, path, &out, "DNS:Edit")
+}
+
 // putJSON performs a PUT with a JSON body.
 func (c *client) putJSON(ctx context.Context, path string, body []byte, perm string) error {
 	return c.doJSON(ctx, http.MethodPut, path, body, nil, perm)

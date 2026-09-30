@@ -6,8 +6,16 @@ export function CreateTunnel(arg1) {
   return window['go']['main']['App']['CreateTunnel'](arg1);
 }
 
+export function DeleteDNSByName(arg1, arg2) {
+  return window['go']['main']['App']['DeleteDNSByName'](arg1, arg2);
+}
+
 export function DeleteTunnel(arg1) {
   return window['go']['main']['App']['DeleteTunnel'](arg1);
+}
+
+export function EnsureCNAME(arg1, arg2, arg3) {
+  return window['go']['main']['App']['EnsureCNAME'](arg1, arg2, arg3);
 }
 
 export function GetAuthState() {
@@ -28,6 +36,10 @@ export function GetTunnelDetail(arg1) {
 
 export function GetTunnelToken(arg1) {
   return window['go']['main']['App']['GetTunnelToken'](arg1);
+}
+
+export function ListDNSRecords(arg1) {
+  return window['go']['main']['App']['ListDNSRecords'](arg1);
 }
 
 export function ListTunnels() {

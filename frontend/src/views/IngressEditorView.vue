@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue'
-import { GetIngressConfig, ListZones, SaveIngressConfig } from '../../wailsjs/go/main/App'
+import { DeleteDNSByName, EnsureCNAME, GetIngressConfig, ListZones, SaveIngressConfig } from '../../wailsjs/go/main/App'
 import type { cloudflare } from '../../wailsjs/go/models'
 
 // Ingress editor (issue #5): visual editing of 域名 → 本地端口 rules.
@@ -35,6 +35,108 @@ function zoneMatch(hostname: string): string {
     if ((h === zn || h.endsWith('.' + zn)) && zn.length > best.length) best = zn
   }
   return best
+}
+
+function zoneFor(hostname: string): cloudflare.Zone | undefined {
+  const zn = zoneMatch(hostname)
+  return zones.value.find((z) => z.name.trim().toLowerCase() === zn)
+}
+
+// relName converts a full hostname to the zone-relative DNS record name
+// (issue #6): nas.example.com → nas, *.example.com → *, a.b.example.com →
+// a.b, apex → @.
+function relName(hostname: string, zoneName: string): string {
+  let h = hostname.trim().toLowerCase().replace(/\.$/, '')
+  const z = zoneName.trim().toLowerCase().replace(/\.$/, '')
+  if (h === z) return '@'
+  if (h.endsWith('.' + z)) return h.slice(0, h.length - z.length - 1)
+  return h
+}
+
+// ---- slice 06: DNS link dialogs ----
+interface DNSPrompt {
+  create: string[] // hostnames to create CNAMEs for
+  remove: string[] // hostnames to delete DNS for
+}
+const dnsPrompt = ref<DNSPrompt | null>(null)
+const dnsCreateChecked = ref(true)
+const dnsRemoveChecked = ref(true)
+const dnsRunning = ref(false)
+const dnsResults = ref<string[]>([])
+
+// delete-link prompt when a rule is removed in the editor
+const deletePrompt = ref<string[] | null>(null)
+const deleteDNSChecked = ref(true)
+
+function hostnamesOf(rulesList: cloudflare.IngressRule[]): string[] {
+  const set: string[] = []
+  for (const r of rulesList) {
+    const h = (r.hostname ?? '').trim().toLowerCase()
+    if (h && !set.includes(h)) set.push(h)
+  }
+  return set
+}
+
+async function runDNSPrompt() {
+  if (!dnsPrompt.value) return
+  const p = dnsPrompt.value
+  const target = props.tunnelId + '.cfargotunnel.com'
+  dnsRunning.value = true
+  dnsResults.value = []
+  try {
+    if (dnsCreateChecked.value) {
+      for (const h of p.create) {
+        const z = zoneFor(h)
+        if (!z) {
+          dnsResults.value.push(`${h}: 无匹配 Zone，跳过`)
+          continue
+        }
+        try {
+          const res = await EnsureCNAME(z.id, relName(h, z.name), target)
+          dnsResults.value.push(`${h}: ${res.created ? '已创建 CNAME' : 'CNAME 已存在（指向当前 Tunnel）'}`)
+        } catch (e) {
+          dnsResults.value.push(`${h}: ${String(e)}`)
+        }
+      }
+    }
+    if (dnsRemoveChecked.value) {
+      for (const h of p.remove) {
+        const z = zoneFor(h)
+        if (!z) continue
+        try {
+          await DeleteDNSByName(z.id, relName(h, z.name))
+          dnsResults.value.push(`${h}: DNS 记录已删除`)
+        } catch (e) {
+          dnsResults.value.push(`${h}: ${String(e)}（请手动处理）`)
+        }
+      }
+    }
+    if (dnsResults.value.length === 0) dnsResults.value.push('没有需要执行的 DNS 操作')
+  } finally {
+    dnsPrompt.value = null
+    dnsRunning.value = false
+  }
+}
+
+function closeDNSResults() {
+  dnsResults.value = []
+}
+
+async function confirmDeleteDNS() {
+  const hs = deletePrompt.value ?? []
+  deletePrompt.value = null
+  if (!deleteDNSChecked.value || hs.length === 0) return
+  const failed: string[] = []
+  for (const h of hs) {
+    const z = zoneFor(h)
+    if (!z) continue
+    try {
+      await DeleteDNSByName(z.id, relName(h, z.name))
+    } catch {
+      failed.push(h)
+    }
+  }
+  if (failed.length) showToast('DNS 记录删除失败，请手动处理：' + failed.join('、'))
 }
 
 function rowErrors(i: number): string[] {
@@ -90,7 +192,13 @@ function addRule() {
 }
 
 function removeRule(i: number) {
+  const h = (rules.value[i].hostname ?? '').trim()
   rules.value.splice(i, 1)
+  // issue #6 delete link: ask whether to remove the DNS record too
+  if (h && zones.value.length > 0) {
+    deletePrompt.value = [h]
+    deleteDNSChecked.value = true
+  }
 }
 
 function move(i: number, dir: -1 | 1) {
@@ -105,10 +213,23 @@ async function save() {
   saving.value = true
   saveError.value = ''
   try {
+    const oldHosts = hostnamesOf(rules.value)
     const got = await SaveIngressConfig(props.tunnelId, rules.value)
+    const newHosts = hostnamesOf(got)
     rules.value = got
     snapshot = JSON.stringify(got.map(norm))
     showToast('配置已保存')
+    // issue #6: offer DNS link for added / removed hostnames (skip when
+    // there are no zones — the editor already shows the no-zone notice)
+    if (zones.value.length > 0) {
+      const create = newHosts.filter((h) => !oldHosts.includes(h))
+      const remove = oldHosts.filter((h) => !newHosts.includes(h))
+      if (create.length || remove.length) {
+        dnsPrompt.value = { create, remove }
+        dnsCreateChecked.value = create.length > 0
+        dnsRemoveChecked.value = remove.length > 0
+      }
+    }
   } catch (e) {
     // PUT failed or read-back mismatch → keep user input, show the error
     saveError.value = String(e)
@@ -268,6 +389,97 @@ onMounted(load)
             @click="leave"
           >
             放弃修改
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- slice 06: DNS link prompt after save -->
+    <div v-if="dnsPrompt" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40">
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <h2 class="text-base font-bold text-slate-900">DNS 联动</h2>
+        <p class="mt-1 text-sm text-slate-500">是否同步处理以下域名的 DNS 记录？</p>
+
+        <div v-if="dnsPrompt.create.length" class="mt-4 rounded-lg border border-slate-200 p-3">
+          <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input v-model="dnsCreateChecked" type="checkbox" class="accent-blue-600" />
+            创建 CNAME（指向 {{ tunnelId }}.cfargotunnel.com）
+          </label>
+          <ul class="mt-1.5 space-y-0.5">
+            <li v-for="h in dnsPrompt.create" :key="'c' + h" class="pl-6 font-mono text-xs text-slate-600">{{ h }}</li>
+          </ul>
+        </div>
+
+        <div v-if="dnsPrompt.remove.length" class="mt-3 rounded-lg border border-slate-200 p-3">
+          <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input v-model="dnsRemoveChecked" type="checkbox" class="accent-blue-600" />
+            删除 DNS 记录
+          </label>
+          <ul class="mt-1.5 space-y-0.5">
+            <li v-for="h in dnsPrompt.remove" :key="'r' + h" class="pl-6 font-mono text-xs text-slate-600">{{ h }}</li>
+          </ul>
+        </div>
+
+        <div class="mt-5 flex justify-end gap-2">
+          <button
+            :disabled="dnsRunning"
+            class="rounded-md border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            @click="dnsPrompt = null"
+          >
+            取消（仅保存规则）
+          </button>
+          <button
+            :disabled="dnsRunning"
+            class="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+            @click="runDNSPrompt"
+          >
+            {{ dnsRunning ? '处理中…' : '确认' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DNS operation results -->
+    <div v-if="dnsResults.length" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40">
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <h2 class="text-base font-bold text-slate-900">DNS 操作结果</h2>
+        <ul class="mt-3 max-h-64 space-y-1 overflow-y-auto">
+          <li v-for="(r, i) in dnsResults" :key="i" class="text-xs text-slate-700">{{ r }}</li>
+        </ul>
+        <div class="mt-5 flex justify-end">
+          <button
+            class="rounded-md bg-slate-800 px-4 py-1.5 text-sm font-semibold text-white hover:bg-slate-700"
+            @click="closeDNSResults"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- slice 06: delete-link prompt -->
+    <div v-if="deletePrompt" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40">
+      <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+        <h2 class="text-base font-bold text-slate-900">同时删除 DNS 记录？</h2>
+        <ul class="mt-3 space-y-1">
+          <li v-for="h in deletePrompt" :key="h" class="font-mono text-xs text-slate-600">{{ h }}</li>
+        </ul>
+        <label class="mt-3 flex items-center gap-2 text-sm text-slate-700">
+          <input v-model="deleteDNSChecked" type="checkbox" class="accent-blue-600" />
+          同时删除对应 DNS 记录
+        </label>
+        <div class="mt-5 flex justify-end gap-2">
+          <button
+            class="rounded-md border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            @click="deletePrompt = null"
+          >
+            取消
+          </button>
+          <button
+            class="rounded-md bg-red-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
+            @click="confirmDeleteDNS"
+          >
+            确认
           </button>
         </div>
       </div>
