@@ -19,6 +19,6 @@ const GRAY = 'bg-slate-200 text-slate-600 ring-slate-300'
     class="inline-flex min-w-[4rem] items-center justify-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1"
     :class="KNOWN[status ?? '']?.cls ?? GRAY"
   >
-    {{ status && KNOWN[status] ? KNOWN[status].label : status || '未知' }}
+    {{ status && KNOWN[status.toLowerCase()] ? KNOWN[status.toLowerCase()].label : status || '未知' }}
   </span>
 </template>

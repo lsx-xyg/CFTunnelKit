@@ -498,13 +498,15 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
     />
 
     <!-- slice 05: ingress editor overlay -->
-    <div v-if="ingressTunnelId" class="fixed inset-0 z-[60] bg-slate-100">
-      <IngressEditorView
-        :tunnel-id="ingressTunnelId"
-        :tunnel-name="ingressTunnelName"
-        @back="ingressTunnelId = null"
-      />
-    </div>
+    <Transition name="page">
+      <div v-if="ingressTunnelId" class="fixed inset-0 z-[60] bg-slate-100">
+        <IngressEditorView
+          :tunnel-id="ingressTunnelId"
+          :tunnel-name="ingressTunnelName"
+          @back="ingressTunnelId = null"
+        />
+      </div>
+    </Transition>
 
     <!-- toast -->
     <div
@@ -516,3 +518,9 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
     </div>
   </div>
 </template>
+
+<style>
+.page-enter-active, .page-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.page-enter-from { opacity: 0; transform: translateX(20px); }
+.page-leave-to { opacity: 0; transform: translateX(-20px); }
+</style>
