@@ -65,6 +65,14 @@ func logLevel(line string) string {
 	}
 }
 
+// cloudflaredPrefixRe strips the timestamp+level prefix from a cloudflared
+// line so the frontend can render its own badge without duplication.
+var cloudflaredPrefixRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z\s+(INF|WRN|ERR|DBG)\s+`)
+
+func stripCloudflaredPrefix(line string) string {
+	return cloudflaredPrefixRe.ReplaceAllString(line, "")
+}
+
 // tunnelProc is one running cloudflared process.
 type tunnelProc struct {
 	cmd     *exec.Cmd
@@ -178,7 +186,7 @@ func (m *Manager) scanStream(r io.Reader, tunnelID, stream string) {
 			"timestamp": time.Now().UnixMilli(),
 			"stream":    stream,
 			"level":     logLevel(line),
-			"line":      line,
+			"line":      stripCloudflaredPrefix(line),
 			"tunnel_id": tunnelID,
 		})
 	}
