@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
-import { VerifyAndSaveToken, GetProxy, SetProxy } from '../../wailsjs/go/main/App'
+import { ref } from 'vue'
+import { VerifyAndSaveToken } from '../../wailsjs/go/main/App'
 import type { cloudflare } from '../../wailsjs/go/models'
 import PermissionBadge from '../components/PermissionBadge.vue'
 
@@ -12,18 +12,8 @@ const loading = ref(false)
 const error = ref('')
 const warnings = ref<string[]>([])
 const permissions = ref<cloudflare.Permissions | null>(null)
-const proxy = ref('')
-const showAdvanced = ref(false)
 
 const MIN_TOKEN_LENGTH = 20
-
-onMounted(async () => {
-  proxy.value = await GetProxy()
-})
-
-async function saveProxy() {
-  await SetProxy(proxy.value.trim())
-}
 
 function validate(token: string): string {
   const t = token.trim()
@@ -87,24 +77,6 @@ const permissionRows: { key: keyof cloudflare.Permissions; label: string }[] = [
         <p class="mt-2 text-xs leading-relaxed text-slate-400">
           需要权限：Cloudflare Tunnel:Edit、DNS:Edit、Zone:Read
         </p>
-      </div>
-
-      <div class="mt-4">
-        <button class="text-xs text-slate-400 hover:text-slate-600" @click="showAdvanced = !showAdvanced">
-          {{ showAdvanced ? '▾' : '▸' }} 高级：代理设置（无法连接 Cloudflare API 时填写）
-        </button>
-        <div v-if="showAdvanced" class="mt-2 rounded-lg border border-slate-200 p-3">
-          <input
-            v-model="proxy"
-            type="text"
-            placeholder="http://127.0.0.1:7890"
-            class="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-            @blur="saveProxy"
-          />
-          <p class="mt-1 text-xs text-slate-400">
-            留空 = 直连。Clash 填 7890，v2rayN 填 10809。填完点其他地方自动保存。
-          </p>
-        </div>
       </div>
 
       <button
