@@ -16,7 +16,7 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-//go:embed internal/assets/tray-icon.png
+//go:embed internal/assets/tray-icon.ico
 var trayIcon []byte
 
 func main() {
@@ -67,6 +67,12 @@ func onReady(app *App) func() {
 		})
 		mQuit.Click(func() {
 			systray.Quit()
+		})
+
+		// left-click tray icon restores window
+		systray.SetOnClick(func(menu systray.IMenu) {
+			wailsruntime.WindowShow(app.ctx)
+			wailsruntime.WindowUnminimise(app.ctx)
 		})
 	}
 }
