@@ -88,6 +88,13 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 }
 
+// Quit exits the app completely (not just hiding the window).
+func (a *App) Quit() {
+	if a.ctx != nil {
+		runtime.Quit(a.ctx)
+	}
+}
+
 func (a *App) ctxOrBackground() context.Context {
 	if a.ctx != nil {
 		return a.ctx
