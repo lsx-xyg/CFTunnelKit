@@ -5,6 +5,8 @@ import {cloudflare} from '../models';
 
 export function GetAuthState():Promise<auth.State>;
 
+export function ListTunnels():Promise<Array<cloudflare.Tunnel>>;
+
 export function RetryVerify():Promise<cloudflare.TokenInfo>;
 
 export function VerifyAndSaveToken(arg1:string):Promise<cloudflare.TokenInfo>;

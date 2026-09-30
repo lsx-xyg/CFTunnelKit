@@ -6,6 +6,10 @@ export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
 }
 
+export function ListTunnels() {
+  return window['go']['main']['App']['ListTunnels']();
+}
+
 export function RetryVerify() {
   return window['go']['main']['App']['RetryVerify']();
 }
