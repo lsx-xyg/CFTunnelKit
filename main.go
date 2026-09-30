@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"log/slog"
 
@@ -33,11 +32,6 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
-		OnBeforeClose: func(ctx context.Context) (prevent bool) {
-			// hide to tray instead of exiting; return true prevents close
-			app.HideWindow()
-			return true
-		},
 		Bind: []interface{}{
 			app,
 		},
