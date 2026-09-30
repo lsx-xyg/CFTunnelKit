@@ -430,3 +430,143 @@ func TestGetTunnelToken_EmptyArgs_AuthError(t *testing.T) {
 		t.Fatalf("error = %v, want KindAuth", err)
 	}
 }
+
+// errWithCode returns a handler responding status with the given CF error code.
+func errWithCode(statusCode, code int) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(statusCode)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"errors":  []map[string]interface{}{{"code": code, "message": "denied"}},
+		})
+	}
+}
+
+func TestCreateTunnel_OK_SendsConfigSrc(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"POST /accounts/acct1/cfd_tunnel": func(w http.ResponseWriter, r *http.Request) {
+			var body map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			if body["name"] != "my-tunnel" {
+				t.Errorf("name = %q, want my-tunnel", body["name"])
+			}
+			if body["config_src"] != "cloudflare" {
+				t.Errorf("config_src = %q, want cloudflare", body["config_src"])
+			}
+			_ = json.NewEncoder(w).Encode(cfOK(map[string]interface{}{
+				"id": "t9", "name": "my-tunnel", "status": "inactive", "created_at": "2026-01-02T00:00:00Z",
+			}))
+		},
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	tun, err := c.CreateTunnel(context.Background(), "acct1", "my-tunnel")
+	if err != nil {
+		t.Fatalf("CreateTunnel: %v", err)
+	}
+	if tun.ID != "t9" || tun.Name != "my-tunnel" {
+		t.Errorf("tunnel = %+v, want t9/my-tunnel", tun)
+	}
+}
+
+func TestCreateTunnel_Conflict_DuplicateName(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"POST /accounts/acct1/cfd_tunnel": errWithCode(http.StatusConflict, 40900),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	_, err := c.CreateTunnel(context.Background(), "acct1", "dup")
+	if !IsAPIError(err, KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+	if !strings.Contains(err.Error(), "同名 Tunnel 已存在") {
+		t.Errorf("message = %q, want to contain 同名 Tunnel 已存在", err.Error())
+	}
+}
+
+func TestCreateTunnel_Forbidden_PermissionError(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"POST /accounts/acct1/cfd_tunnel": cfErr(http.StatusForbidden),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	_, err := c.CreateTunnel(context.Background(), "acct1", "x")
+	if !IsAPIError(err, KindPermission) {
+		t.Fatalf("error = %v, want KindPermission", err)
+	}
+	if !strings.Contains(err.Error(), "Tunnel:Edit") {
+		t.Errorf("message = %q, want to contain Tunnel:Edit", err.Error())
+	}
+}
+
+func TestDeleteTunnel_OK(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"DELETE /accounts/acct1/cfd_tunnel/tun1": okJSON(map[string]interface{}{"id": "tun1"}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	if err := c.DeleteTunnel(context.Background(), "acct1", "tun1"); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+}
+
+func TestDeleteTunnel_ActiveConnections_Code1003(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"DELETE /accounts/acct1/cfd_tunnel/tun1": errWithCode(http.StatusBadRequest, 1003),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	err := c.DeleteTunnel(context.Background(), "acct1", "tun1")
+	if !IsAPIError(err, KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+	if !strings.Contains(err.Error(), "该 Tunnel 有活跃连接，请先停止隧道") {
+		t.Errorf("message = %q, want to contain 请先停止隧道", err.Error())
+	}
+}
+
+func TestDeleteTunnel_NotFound_APIError(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"DELETE /accounts/acct1/cfd_tunnel/nope": cfErr(http.StatusNotFound),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	err := c.DeleteTunnel(context.Background(), "acct1", "nope")
+	if !IsAPIError(err, KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+}
+
+func TestGetTunnelDetail_OK_CountsConnections(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel/tun1": okJSON(map[string]interface{}{
+			"id": "tun1", "name": "tunnel-a", "status": "healthy",
+			"created_at": "2026-01-01T00:00:00Z",
+			"connections": []map[string]interface{}{
+				{"colostate": "connected"},
+				{"colostate": "connected"},
+			},
+		}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	d, err := c.GetTunnelDetail(context.Background(), "acct1", "tun1")
+	if err != nil {
+		t.Fatalf("GetTunnelDetail: %v", err)
+	}
+	if d.ID != "tun1" || d.Name != "tunnel-a" || d.Status != "healthy" {
+		t.Errorf("detail = %+v, want tun1/tunnel-a/healthy", d)
+	}
+	if d.Connections != 2 {
+		t.Errorf("connections = %d, want 2", d.Connections)
+	}
+	if d.CreatedAt.IsZero() {
+		t.Error("CreatedAt should be parsed")
+	}
+}
+
+func TestGetTunnelDetail_NotFound_APIError(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel/nope": cfErr(http.StatusNotFound),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	_, err := c.GetTunnelDetail(context.Background(), "acct1", "nope")
+	if !IsAPIError(err, KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+}

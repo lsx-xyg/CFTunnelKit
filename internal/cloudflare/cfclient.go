@@ -103,13 +103,39 @@ type cfError struct {
 // perm, when non-empty, is used to build the 403 permission message.
 // If out is nil, the result payload is discarded.
 func (c *client) getJSON(ctx context.Context, path string, out interface{}, perm string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	return c.doJSON(ctx, http.MethodGet, path, nil, out, perm)
+}
+
+// postJSON performs a POST with a JSON body.
+func (c *client) postJSON(ctx context.Context, path string, body []byte, out interface{}, perm string) error {
+	return c.doJSON(ctx, http.MethodPost, path, body, out, perm)
+}
+
+// deleteJSON performs a DELETE.
+func (c *client) deleteJSON(ctx context.Context, path string, out interface{}, perm string) error {
+	return c.doJSON(ctx, http.MethodDelete, path, nil, out, perm)
+}
+
+// doJSON performs a request against the API and decodes `result` into out
+// on 2xx. Error mapping (issue #2/#6): 401 → auth, 403 → permission, 404 →
+// API, 409 → "同名 Tunnel 已存在", error code 1003 (active connections,
+// e.g. delete) → "该 Tunnel 有活跃连接，请先停止隧道", anything else →
+// network.
+func (c *client) doJSON(ctx context.Context, method, path string, body []byte, out interface{}, perm string) error {
+	var rdr io.Reader
+	if body != nil {
+		rdr = strings.NewReader(string(body))
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, rdr)
 	if err != nil {
 		return &APIError{Kind: KindNetwork, Message: "无法连接 Cloudflare API", Cause: err}
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("User-Agent", c.ua)
 	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	resp, err := c.hc.Do(req)
 	if err != nil {
@@ -117,19 +143,19 @@ func (c *client) getJSON(ctx context.Context, path string, out interface{}, perm
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return &APIError{Kind: KindNetwork, Message: "无法连接 Cloudflare API", Cause: err}
 	}
 
 	switch resp.StatusCode {
-	case http.StatusOK:
+	case http.StatusOK, http.StatusCreated:
 		var wrapper struct {
-			Success bool      `json:"success"`
-			Errors  []cfError `json:"errors"`
+			Success bool            `json:"success"`
+			Errors  []cfError       `json:"errors"`
 			Result  json.RawMessage `json:"result"`
 		}
-		if err := json.Unmarshal(body, &wrapper); err != nil {
+		if err := json.Unmarshal(raw, &wrapper); err != nil {
 			return &APIError{Kind: KindNetwork, Message: "无法连接 Cloudflare API", Cause: fmt.Errorf("解析响应失败: %w", err)}
 		}
 		if !wrapper.Success {
@@ -152,11 +178,38 @@ func (c *client) getJSON(ctx context.Context, path string, out interface{}, perm
 			return &APIError{Kind: KindPermission, Message: "缺少 " + perm + " 权限"}
 		}
 		return &APIError{Kind: KindPermission, Message: "缺少 Cloudflare API 权限"}
+	case http.StatusConflict:
+		// 409: Cloudflare rejects duplicate tunnel names with 409.
+		if firstErrorCodeMessage(raw, 1003) != "" {
+			return &APIError{Kind: KindAPI, Message: "该 Tunnel 有活跃连接，请先停止隧道"}
+		}
+		return &APIError{Kind: KindAPI, Message: "同名 Tunnel 已存在"}
 	case http.StatusNotFound:
 		return &APIError{Kind: KindAPI, Message: "Cloudflare API 资源不存在"}
 	default:
+		if firstErrorCodeMessage(raw, 1003) != "" {
+			return &APIError{Kind: KindAPI, Message: "该 Tunnel 有活跃连接，请先停止隧道"}
+		}
 		return &APIError{Kind: KindNetwork, Message: "无法连接 Cloudflare API"}
 	}
+}
+
+// firstErrorCodeMessage returns a non-empty message when the response
+// errors array contains the given code (used to recognize the
+// active-connections delete error, issue #6).
+func firstErrorCodeMessage(raw []byte, code int) string {
+	var wrapper struct {
+		Errors []cfError `json:"errors"`
+	}
+	if err := json.Unmarshal(raw, &wrapper); err != nil {
+		return ""
+	}
+	for _, e := range wrapper.Errors {
+		if e.Code == code {
+			return "该 Tunnel 有活跃连接，请先停止隧道"
+		}
+	}
+	return ""
 }
 
 // probe runs a read-only permission probe. 403 maps to PermissionMissing,
@@ -304,4 +357,66 @@ func (c *client) GetTunnelToken(ctx context.Context, accountID, tunnelID string)
 		return "", &APIError{Kind: KindAPI, Message: "Tunnel 运行 Token 为空"}
 	}
 	return tt.Token, nil
+}
+
+// CreateTunnel implements CFClient.CreateTunnel. The name is validated
+// frontend-side (≤32 chars, [a-zA-Z0-9_-]); the API rejects duplicates
+// with 409, mapped to "同名 Tunnel 已存在".
+func (c *client) CreateTunnel(ctx context.Context, accountID, name string) (Tunnel, error) {
+	if strings.TrimSpace(accountID) == "" {
+		return Tunnel{}, &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
+	}
+	if strings.TrimSpace(name) == "" {
+		return Tunnel{}, &APIError{Kind: KindAPI, Message: "Tunnel 名称不能为空"}
+	}
+	body, err := json.Marshal(map[string]string{"name": name, "config_src": "cloudflare"})
+	if err != nil {
+		return Tunnel{}, &APIError{Kind: KindNetwork, Message: "无法连接 Cloudflare API", Cause: err}
+	}
+	var t Tunnel
+	path := "/accounts/" + accountID + "/cfd_tunnel"
+	if err := c.postJSON(ctx, path, body, &t, "Tunnel:Edit"); err != nil {
+		return Tunnel{}, err
+	}
+	return t, nil
+}
+
+// DeleteTunnel implements CFClient.DeleteTunnel. Deleting a tunnel with
+// active connections yields the mapped "该 Tunnel 有活跃连接，请先停止隧道"
+// (error code 1003).
+func (c *client) DeleteTunnel(ctx context.Context, accountID, tunnelID string) error {
+	if strings.TrimSpace(accountID) == "" || strings.TrimSpace(tunnelID) == "" {
+		return &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
+	}
+	var out struct {
+		ID string `json:"id"`
+	}
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s", accountID, tunnelID)
+	return c.deleteJSON(ctx, path, &out, "Tunnel:Edit")
+}
+
+// GetTunnelDetail implements CFClient.GetTunnelDetail. The wire
+// connections array is collapsed into a count.
+func (c *client) GetTunnelDetail(ctx context.Context, accountID, tunnelID string) (TunnelDetail, error) {
+	if strings.TrimSpace(accountID) == "" || strings.TrimSpace(tunnelID) == "" {
+		return TunnelDetail{}, &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
+	}
+	var wire struct {
+		ID          string        `json:"id"`
+		Name        string        `json:"name"`
+		Status      string        `json:"status"`
+		CreatedAt   time.Time     `json:"created_at"`
+		Connections []interface{} `json:"connections"`
+	}
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s", accountID, tunnelID)
+	if err := c.getJSON(ctx, path, &wire, "Tunnel:Edit"); err != nil {
+		return TunnelDetail{}, err
+	}
+	return TunnelDetail{
+		ID:          wire.ID,
+		Name:        wire.Name,
+		Status:      wire.Status,
+		CreatedAt:   wire.CreatedAt,
+		Connections: len(wire.Connections),
+	}, nil
 }

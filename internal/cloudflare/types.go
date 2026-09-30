@@ -54,6 +54,16 @@ type TunnelToken struct {
 	Token string `json:"token"`
 }
 
+// TunnelDetail is the full tunnel record for the detail view (issue #6):
+// metadata plus the number of active connections (result.connections).
+type TunnelDetail struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	Connections int       `json:"connections"`
+}
+
 // Zone is a Cloudflare zone as returned by /zones.
 type Zone struct {
 	ID   string `json:"id"`

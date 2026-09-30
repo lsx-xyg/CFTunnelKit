@@ -121,3 +121,29 @@ func (a *App) StopAllTunnels() error {
 func (a *App) GetRunStates() map[string]string {
 	return a.pm.RunStates()
 }
+
+// ---- slice 04: tunnel create / delete / detail bindings ----
+
+// CreateTunnel creates a remotely-managed tunnel (issue #6). The name is
+// validated frontend-side; 409 surfaces as "同名 Tunnel 已存在".
+func (a *App) CreateTunnel(name string) (cloudflare.Tunnel, error) {
+	return a.auth.CreateTunnel(a.ctxOrBackground(), name)
+}
+
+// DeleteTunnel deletes a tunnel. Active-connection errors surface as
+// "该 Tunnel 有活跃连接，请先停止隧道".
+func (a *App) DeleteTunnel(tunnelID string) error {
+	return a.auth.DeleteTunnel(a.ctxOrBackground(), tunnelID)
+}
+
+// GetTunnelDetail returns one tunnel's full record (metadata + connection
+// count) for the detail dialog.
+func (a *App) GetTunnelDetail(tunnelID string) (cloudflare.TunnelDetail, error) {
+	return a.auth.GetTunnelDetail(a.ctxOrBackground(), tunnelID)
+}
+
+// GetTunnelToken returns the run token for a tunnel (create/detail dialogs,
+// issue #6). Token failures never block create.
+func (a *App) GetTunnelToken(tunnelID string) (string, error) {
+	return a.auth.GetTunnelToken(a.ctxOrBackground(), tunnelID)
+}

@@ -5,6 +5,8 @@ import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 import type { auth, cloudflare } from '../../wailsjs/go/models'
 import PermissionBadge from '../components/PermissionBadge.vue'
 import TunnelStatusBadge from '../components/TunnelStatusBadge.vue'
+import CreateTunnelDialog from '../components/CreateTunnelDialog.vue'
+import TunnelDetailDialog from '../components/TunnelDetailDialog.vue'
 
 interface LogPayload {
   timestamp: number
@@ -42,6 +44,22 @@ const download = ref<{ active: boolean; phase: string; downloaded: number; total
 })
 const toast = ref('')
 let toastTimer: number | undefined
+
+// --- slice 04: create / detail dialogs ---
+const showCreate = ref(false)
+const detailTunnelId = ref<string | null>(null)
+
+function onCreated() {
+  showCreate.value = false
+  showToast('Tunnel 创建成功')
+  loadTunnels()
+}
+
+function onDeleted() {
+  detailTunnelId.value = null
+  showToast('Tunnel 已删除')
+  loadTunnels()
+}
 
 // Log panel: global ring buffer capped at 5000 lines (issue #5), oldest
 // dropped first.
@@ -214,6 +232,12 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           <span class="text-slate-500">{{ row.label }}</span>
           <PermissionBadge :status="state.token_info?.permissions?.[row.key] ?? 'unverified'" />
         </span>
+        <button
+          class="ml-2 rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
+          @click="showCreate = true"
+        >
+          + 创建 Tunnel
+        </button>
       </div>
     </header>
 
@@ -274,17 +298,15 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
         </button>
       </div>
 
-      <!-- empty state: placeholder create button (slice 04) -->
+      <!-- empty state: create -->
       <div v-else-if="tunnels.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
         <p class="text-sm font-medium text-slate-600">此账户还没有 Tunnel</p>
         <button
-          disabled
-          title="创建功能将在切片 04 实现"
-          class="mt-4 cursor-not-allowed rounded-md bg-slate-300 px-4 py-1.5 text-sm font-semibold text-white"
+          class="mt-4 rounded-md bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700"
+          @click="showCreate = true"
         >
           创建 Tunnel
         </button>
-        <p class="mt-2 text-xs text-slate-400">创建功能将在切片 04 实现</p>
       </div>
 
       <!-- tunnel list -->
@@ -321,6 +343,12 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
               <td class="px-5 py-3 font-mono text-xs text-slate-500">{{ t.id }}</td>
               <td class="px-5 py-3 text-slate-500">{{ fmtTime(t.created_at) }}</td>
               <td class="px-5 py-3">
+                <button
+                  class="mr-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  @click="detailTunnelId = t.id"
+                >
+                  详情
+                </button>
                 <button
                   v-if="runStates[t.id] !== 'running'"
                   :disabled="busy[t.id]"
@@ -372,6 +400,15 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
         </div>
       </section>
     </main>
+
+    <!-- slice 04: dialogs -->
+    <CreateTunnelDialog v-if="showCreate" @close="showCreate = false" @created="onCreated" />
+    <TunnelDetailDialog
+      v-if="detailTunnelId"
+      :tunnel-id="detailTunnelId"
+      @close="detailTunnelId = null"
+      @deleted="onDeleted"
+    />
 
     <!-- toast -->
     <div
