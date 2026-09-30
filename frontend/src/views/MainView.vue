@@ -101,6 +101,10 @@ const logBox = ref<HTMLElement | null>(null)
 
 const runningTunnels = computed(() => tunnels.value.filter((t) => runStates.value[t.id] === 'running'))
 
+const runningCount = computed(() => tunnels.value.filter((t) => runStates.value[t.id] === 'running').length)
+const stoppedCount = computed(() => tunnels.value.filter((t) => runStates.value[t.id] !== 'running').length)
+const errorCount = computed(() => tunnels.value.filter((t) => runStates.value[t.id] === 'error').length)
+
 const visibleLogs = computed(() => {
   let out = logLines.value
   if (logFilter.value) out = out.filter((l) => l.tunnel_id === logFilter.value)
@@ -386,6 +390,26 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
         >
           创建 Tunnel
         </button>
+      </div>
+
+      <!-- stats cards -->
+      <div v-if="tunnels.length > 0" class="grid grid-cols-4 gap-3 mb-4">
+        <div class="rounded-xl border border-slate-200 bg-white p-3">
+          <p class="text-xs text-slate-400">总隧道</p>
+          <p class="text-xl font-bold text-slate-800">{{ tunnels.length }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-3">
+          <p class="text-xs text-slate-400">运行中</p>
+          <p class="text-xl font-bold text-green-600">{{ runningCount }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-3">
+          <p class="text-xs text-slate-400">已停止</p>
+          <p class="text-xl font-bold text-slate-500">{{ stoppedCount }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-3">
+          <p class="text-xs text-slate-400">异常</p>
+          <p class="text-xl font-bold text-red-500">{{ errorCount }}</p>
+        </div>
       </div>
 
       <!-- tunnel list -->

@@ -196,8 +196,10 @@ function addRule() {
 function removeRule(i: number) {
   const h = (rules.value[i].hostname ?? '').trim()
   rules.value.splice(i, 1)
+  // immediate save: PUT the new list
+  save()
   // issue #6 delete link: ask whether to remove the DNS record too
-  if (h && zones.value.length > 0) {
+  if (h) {
     deletePrompt.value = [h]
     deleteDNSChecked.value = true
   }
@@ -208,6 +210,7 @@ function move(i: number, dir: -1 | 1) {
   if (j < 0 || j >= rules.value.length) return
   const arr = rules.value
   ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  save()
 }
 
 async function save() {
