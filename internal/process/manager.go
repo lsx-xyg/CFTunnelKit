@@ -6,11 +6,14 @@
 package process
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sync"
+	"time"
 )
 
 // minBinarySize guards against truncated/corrupt downloads: real
@@ -25,19 +28,29 @@ var ErrAlreadyRunning = fmt.Errorf("该 Tunnel 已在运行")
 // runtime.EventsEmit; tests may pass nil.
 type Emitter func(event string, payload interface{})
 
-// Manager owns the cloudflared binary and (commit 2) the running tunnel
-// processes.
+// Manager owns the cloudflared binary and the running tunnel processes.
 type Manager struct {
 	binDir  string
 	emitter Emitter
 
-	// mu guards the binary download and the running map.
-	mu sync.Mutex
+	mu          sync.Mutex
+	running     map[string]*tunnelProc
+	stopTimeout time.Duration
+	newCmd      func(ctx context.Context, name string, args ...string) *exec.Cmd
 }
 
 // NewManager creates a Manager storing the binary under binDir.
 func NewManager(binDir string, emitter Emitter) *Manager {
-	return &Manager{binDir: binDir, emitter: emitter}
+	m := &Manager{
+		binDir:      binDir,
+		emitter:     emitter,
+		running:     map[string]*tunnelProc{},
+		stopTimeout: defaultStopTimeout,
+	}
+	m.newCmd = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		return exec.Command(name, args...)
+	}
+	return m
 }
 
 // BinPath returns the local cloudflared binary path (.exe on Windows).

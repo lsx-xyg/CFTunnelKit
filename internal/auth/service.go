@@ -202,3 +202,28 @@ func (s *Service) ListTunnels(ctx context.Context) ([]cloudflare.Tunnel, error) 
 	}
 	return tunnels, nil
 }
+
+// GetTunnelToken fetches the run token for a tunnel (issue #5, needed to
+// start cloudflared). Auth failures clear the persisted config and reset
+// the state, exactly like ListTunnels.
+func (s *Service) GetTunnelToken(ctx context.Context, tunnelID string) (string, error) {
+	cfg, err := s.store.Load()
+	if err != nil {
+		return "", &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "Token 已失效，请重新输入"}
+	}
+	if strings.TrimSpace(cfg.APIToken) == "" || strings.TrimSpace(cfg.AccountID) == "" {
+		return "", &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "账户未解析，请重新认证"}
+	}
+
+	tok, err := s.newClient(cfg.APIToken).GetTunnelToken(ctx, cfg.AccountID, tunnelID)
+	if err != nil {
+		if cloudflare.IsAPIError(err, cloudflare.KindAuth) {
+			_ = s.store.Clear()
+			s.mu.Lock()
+			s.state = State{}
+			s.mu.Unlock()
+		}
+		return "", err
+	}
+	return tok, nil
+}

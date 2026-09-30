@@ -16,6 +16,7 @@ import (
 type fakeClient struct {
 	verifyFn func(ctx context.Context) (cloudflare.TokenInfo, error)
 	listFn   func(ctx context.Context, accountID string, page, perPage int) ([]cloudflare.Tunnel, error)
+	tokenFn  func(ctx context.Context, accountID, tunnelID string) (string, error)
 }
 
 func (f *fakeClient) VerifyToken(ctx context.Context) (cloudflare.TokenInfo, error) {
@@ -24,6 +25,10 @@ func (f *fakeClient) VerifyToken(ctx context.Context) (cloudflare.TokenInfo, err
 
 func (f *fakeClient) ListTunnels(ctx context.Context, accountID string, page, perPage int) ([]cloudflare.Tunnel, error) {
 	return f.listFn(ctx, accountID, page, perPage)
+}
+
+func (f *fakeClient) GetTunnelToken(ctx context.Context, accountID, tunnelID string) (string, error) {
+	return f.tokenFn(ctx, accountID, tunnelID)
 }
 
 func newTestService(t *testing.T, c cloudflare.CFClient) (*Service, *config.Store) {
@@ -304,5 +309,66 @@ func TestListTunnels_NetworkError_StateUntouched(t *testing.T) {
 	st := svc.GetState()
 	if !st.Authenticated || !st.HasToken {
 		t.Errorf("state = %+v, want untouched authenticated", st)
+	}
+}
+
+func TestGetTunnelToken_Success_UsesPersistedAccount(t *testing.T) {
+	var gotAccount, gotTunnel string
+	svc, _ := newListService(t, &fakeClient{tokenFn: func(ctx context.Context, accountID, tunnelID string) (string, error) {
+		gotAccount, gotTunnel = accountID, tunnelID
+		return "tok-run-1", nil
+	}}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	tok, err := svc.GetTunnelToken(context.Background(), "tun1")
+	if err != nil {
+		t.Fatalf("GetTunnelToken: %v", err)
+	}
+	if tok != "tok-run-1" {
+		t.Errorf("token = %q, want tok-run-1", tok)
+	}
+	if gotAccount != "acct1" || gotTunnel != "tun1" {
+		t.Errorf("client called with account=%s tunnel=%s, want acct1/tun1", gotAccount, gotTunnel)
+	}
+}
+
+func TestGetTunnelToken_AuthError_ClearsConfigAndState(t *testing.T) {
+	svc, store := newListService(t, &fakeClient{tokenFn: func(ctx context.Context, accountID, tunnelID string) (string, error) {
+		return "", &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "Token 无效或已失效"}
+	}}, config.Config{APIToken: "tok-expired", AccountID: "acct1"})
+	svc.mu.Lock()
+	svc.state = State{Authenticated: true, HasToken: true}
+	svc.mu.Unlock()
+
+	_, err := svc.GetTunnelToken(context.Background(), "tun1")
+	if !cloudflare.IsAPIError(err, cloudflare.KindAuth) {
+		t.Fatalf("error = %v, want KindAuth", err)
+	}
+	if _, statErr := os.Stat(store.Path()); statErr == nil {
+		t.Error("config should be cleared on auth failure")
+	}
+	st := svc.GetState()
+	if st.Authenticated || st.HasToken {
+		t.Errorf("state = %+v, want reset", st)
+	}
+}
+
+func TestGetTunnelToken_PermissionError_StateUntouched(t *testing.T) {
+	svc, store := newListService(t, &fakeClient{tokenFn: func(ctx context.Context, accountID, tunnelID string) (string, error) {
+		return "", &cloudflare.APIError{Kind: cloudflare.KindPermission, Message: "缺少 Tunnel:Edit 权限"}
+	}}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+	svc.mu.Lock()
+	svc.state = State{Authenticated: true, HasToken: true}
+	svc.mu.Unlock()
+
+	_, err := svc.GetTunnelToken(context.Background(), "tun1")
+	if !cloudflare.IsAPIError(err, cloudflare.KindPermission) {
+		t.Fatalf("error = %v, want KindPermission", err)
+	}
+	if _, statErr := os.Stat(store.Path()); statErr != nil {
+		t.Error("config should NOT be cleared on permission error")
+	}
+	st := svc.GetState()
+	if !st.Authenticated || !st.HasToken {
+		t.Errorf("state = %+v, want untouched", st)
 	}
 }

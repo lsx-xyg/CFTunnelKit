@@ -364,3 +364,69 @@ func TestListTunnels_ServerError500_NetworkError(t *testing.T) {
 		t.Fatalf("error = %v, want KindNetwork", err)
 	}
 }
+
+func TestGetTunnelToken_OK(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel/tun1/token": okJSON(map[string]interface{}{
+			"token": "tok-secret-123",
+		}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	tok, err := c.GetTunnelToken(context.Background(), "acct1", "tun1")
+	if err != nil {
+		t.Fatalf("GetTunnelToken: %v", err)
+	}
+	if tok != "tok-secret-123" {
+		t.Errorf("token = %q, want tok-secret-123", tok)
+	}
+}
+
+func TestGetTunnelToken_EmptyResult_TokenEmptyError(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel/tun1/token": okJSON(map[string]interface{}{}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	_, err := c.GetTunnelToken(context.Background(), "acct1", "tun1")
+	if !IsAPIError(err, KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+	if !strings.Contains(err.Error(), "运行 Token 为空") {
+		t.Errorf("message = %q, want to contain 运行 Token 为空", err.Error())
+	}
+}
+
+func TestGetTunnelToken_NotFound_APIError(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel/nope/token": cfErr(http.StatusNotFound),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	_, err := c.GetTunnelToken(context.Background(), "acct1", "nope")
+	if !IsAPIError(err, KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+	if !strings.Contains(err.Error(), "资源不存在") {
+		t.Errorf("message = %q, want to contain 资源不存在", err.Error())
+	}
+}
+
+func TestGetTunnelToken_Forbidden_PermissionError(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel/tun1/token": cfErr(http.StatusForbidden),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	_, err := c.GetTunnelToken(context.Background(), "acct1", "tun1")
+	if !IsAPIError(err, KindPermission) {
+		t.Fatalf("error = %v, want KindPermission", err)
+	}
+	if !strings.Contains(err.Error(), "Tunnel:Edit") {
+		t.Errorf("message = %q, want to contain Tunnel:Edit", err.Error())
+	}
+}
+
+func TestGetTunnelToken_EmptyArgs_AuthError(t *testing.T) {
+	c := New(Options{Token: testToken}).(*client)
+	_, err := c.GetTunnelToken(context.Background(), "", "tun1")
+	if !IsAPIError(err, KindAuth) {
+		t.Fatalf("error = %v, want KindAuth", err)
+	}
+}

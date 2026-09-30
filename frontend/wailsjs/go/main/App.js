@@ -6,12 +6,28 @@ export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
 }
 
+export function GetRunStates() {
+  return window['go']['main']['App']['GetRunStates']();
+}
+
 export function ListTunnels() {
   return window['go']['main']['App']['ListTunnels']();
 }
 
 export function RetryVerify() {
   return window['go']['main']['App']['RetryVerify']();
+}
+
+export function StartTunnel(arg1) {
+  return window['go']['main']['App']['StartTunnel'](arg1);
+}
+
+export function StopAllTunnels() {
+  return window['go']['main']['App']['StopAllTunnels']();
+}
+
+export function StopTunnel(arg1) {
+  return window['go']['main']['App']['StopTunnel'](arg1);
 }
 
 export function VerifyAndSaveToken(arg1) {
