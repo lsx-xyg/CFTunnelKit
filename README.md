@@ -17,6 +17,34 @@ Cloudflare Tunnel 桌面管理器 —— 基于 **Go + Wails** 的跨平台桌�
 
 详情见 [SPEC](SPEC.md) 与 GitHub issue（`gh issue list`）。
 
+## 下载
+
+从 [Releases](https://github.com/lsx-xyg/CFTunnelKit/releases) 下载 Windows 可执行文件（`cftunnelkit.exe`）。
+
+**未签名**：Windows SmartScreen 提示时点"更多信息 → 仍要运行"。
+
+## 构建 Linux 包
+
+CI 目前只打 Windows。本地打 Linux：
+
+```bash
+# 安装 Linux 依赖
+sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev
+
+# 交叉编译或本机编译
+wails build -platform linux/amd64 -s
+# 产物在 build/bin/cftunnelkit
+```
+
+## 功能
+
+- 粘贴 Cloudflare API Token 管理 Tunnel
+- 可视化编辑 Ingress 规则（域名→本地端口）
+- 自动创建/删除 DNS CNAME 记录
+- 启停 cloudflared 进程，实时日志
+- 关闭窗口隐藏到系统托盘，托盘右键退出
+- `Ctrl+` ` 打开浮动终端日志
+
 ## 开发
 
 前置：Go ≥ 1.25（`GOTOOLCHAIN=auto` 可自动拉取）、Node ≥ 20、Wails CLI（`go install github.com/wailsapp/wails/v2/cmd/wails@latest`）。
