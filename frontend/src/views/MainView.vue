@@ -413,7 +413,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </div>
 
       <!-- tunnel list -->
-      <div v-else class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div v-if="tunnels.length > 0" class="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table class="min-w-full divide-y divide-slate-200 text-xs">
           <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
