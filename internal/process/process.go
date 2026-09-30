@@ -140,12 +140,16 @@ func (m *Manager) watch(p *tunnelProc, tunnelID string) {
 
 // scanStream reads a command stream line by line and pushes
 // cloudflared:log events {timestamp, stream, line, tunnel_id} with ANSI
-// sequences stripped.
+// sequences stripped. The same stripped line is appended to the rolling
+// log file (slice 07b) when a writer is installed.
 func (m *Manager) scanStream(r io.Reader, tunnelID, stream string) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
 	for sc.Scan() {
 		line := ansiRe.ReplaceAllString(sc.Text(), "")
+		if m.logWriter != nil {
+			_, _ = io.WriteString(m.logWriter, line+"\n")
+		}
 		m.emit("cloudflared:log", map[string]interface{}{
 			"timestamp": time.Now().UnixMilli(),
 			"stream":    stream,

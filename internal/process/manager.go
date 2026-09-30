@@ -8,6 +8,7 @@ package process
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,6 +33,7 @@ type Emitter func(event string, payload interface{})
 type Manager struct {
 	binDir  string
 	emitter Emitter
+	logWriter io.Writer // optional rolling file (slice 07b); nil disables
 
 	mu          sync.Mutex
 	running     map[string]*tunnelProc
@@ -51,6 +53,13 @@ func NewManager(binDir string, emitter Emitter) *Manager {
 		return exec.Command(name, args...)
 	}
 	return m
+}
+
+// SetLogWriter installs the rolling log writer (issue #9). Every stripped
+// log line pushed to the frontend is also written here with a trailing
+// newline. The writer must be safe for concurrent use (lumberjack is).
+func (m *Manager) SetLogWriter(w io.Writer) {
+	m.logWriter = w
 }
 
 // BinPath returns the local cloudflared binary path (.exe on Windows).

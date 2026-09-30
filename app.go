@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/lsx-xyg/CFTunnelKit/internal/auth"
 	"github.com/lsx-xyg/CFTunnelKit/internal/cloudflare"
 	"github.com/lsx-xyg/CFTunnelKit/internal/config"
 	"github.com/lsx-xyg/CFTunnelKit/internal/process"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // App is the Wails application root. Its exported methods become the
@@ -38,7 +42,33 @@ func NewApp() *App {
 			runtime.EventsEmit(a.ctx, event, payload)
 		}
 	})
+	if err := a.initRollingLog(); err != nil {
+		// Non-fatal: log persistence is best-effort (slice 07b).
+		fmt.Printf("warning: rolling log unavailable: %v\n", err)
+	}
 	return a
+}
+
+// initRollingLog wires the ~/.cftunnelkit/logs/cloudflared.log roller into
+// the process manager (issue #9: MaxSize 1MB, MaxBackups 3, no compress).
+func (a *App) initRollingLog() error {
+	logPath, err := config.DefaultLogPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return err
+	}
+	if pm, ok := a.pm.(*process.Manager); ok {
+		pm.SetLogWriter(&lumberjack.Logger{
+			Filename:   logPath,
+			MaxSize:    1, // MB
+			MaxBackups: 3,
+			MaxAge:     0,
+			Compress:   false,
+		})
+	}
+	return nil
 }
 
 // startup is called by Wails when the app boots. Only the persisted state is
