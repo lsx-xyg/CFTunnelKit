@@ -28,8 +28,8 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Build (NSIS installer + exe)
-        run: wails build -nsis -clean
+      - name: Build exe
+        run: wails build
 
       - name: Checksums
         working-directory: build/bin
