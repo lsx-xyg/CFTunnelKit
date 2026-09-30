@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/lsx-xyg/CFTunnelKit/internal/applog"
 	"github.com/lsx-xyg/CFTunnelKit/internal/auth"
 	"github.com/lsx-xyg/CFTunnelKit/internal/cloudflare"
 	"github.com/lsx-xyg/CFTunnelKit/internal/config"
@@ -213,4 +214,17 @@ func (a *App) EnsureCNAME(zoneID, name, target string) (cloudflare.DNSEnsureResu
 // (issue #6 delete link). Missing records are an idempotent success.
 func (a *App) DeleteDNSByName(zoneID, name string) (bool, error) {
 	return a.auth.DeleteDNSByName(a.ctxOrBackground(), zoneID, name)
+}
+
+// LogDir returns the absolute path of the directory containing app.log and
+// cloudflared.log, so the user can open it and send logs for debugging.
+func (a *App) LogDir() string {
+	return applog.Dir()
+}
+
+// OpenLogDir opens the logs folder in the system file manager.
+func (a *App) OpenLogDir() {
+	d := applog.Dir()
+	_ = os.MkdirAll(d, 0o700)
+	runtime.BrowserOpenURL(a.ctx, "file://"+filepath.ToSlash(d))
 }
