@@ -170,17 +170,14 @@ async function startTunnel(t: cloudflare.Tunnel) {
   try {
     await StartTunnel(t.id)
     runStates.value[t.id] = 'running'
+    // local optimistic update only — no full list reload
+    const row = tunnels.value.find((x) => x.id === t.id)
+    if (row) row.status = 'HEALTHY'
     showToast(`已启动 ${t.name}`, 'success')
     pushOp(`启动隧道 ${t.name}（${t.id.slice(0,8)}）`, 'ok')
-    // Cloudflare API status updates a few seconds after the connector
-    // registers; refresh the list shortly after to pick it up.
-    setTimeout(() => loadTunnels(), 5000)
   } catch (e) {
     const st = await GetAuthState()
-    if (!st.authenticated) {
-      emit('session-expired')
-      return
-    }
+    if (!st.authenticated) { emit('session-expired'); return }
     const msg = friendlyError(e)
     showToast(msg, 'error')
     pushOp(`启动隧道 ${t.name} 失败：${msg}`, 'fail')
@@ -194,9 +191,10 @@ async function stopTunnel(t: cloudflare.Tunnel) {
   try {
     await StopTunnel(t.id)
     runStates.value[t.id] = 'stopped'
+    const row = tunnels.value.find((x) => x.id === t.id)
+    if (row) row.status = 'INACTIVE'
     showToast(`已停止 ${t.name}`, 'success')
     pushOp(`停止隧道 ${t.name}（${t.id.slice(0,8)}）`, 'ok')
-    setTimeout(() => loadTunnels(), 3000)
   } catch (e) {
     const msg = friendlyError(e)
     showToast(msg, 'error')

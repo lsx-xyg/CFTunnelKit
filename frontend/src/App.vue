@@ -112,8 +112,12 @@ onUnmounted(() => {
     <div v-if="booting" class="flex h-full items-center justify-center">
       <p class="text-sm text-slate-400">正在启动…</p>
     </div>
-    <AuthView v-else-if="!state.authenticated" :initial-message="state.message" @verified="refresh" />
-    <MainView v-else :state="state" @refresh="refresh" @session-expired="onSessionExpired" @toggle-log="toggleLog" />
+    <Transition name="fade">
+      <AuthView v-if="!state.authenticated" :initial-message="state.message" @verified="refresh" />
+    </Transition>
+    <Transition name="fade">
+      <MainView v-if="state.authenticated" :state="state" @refresh="refresh" @session-expired="onSessionExpired" @toggle-log="toggleLog" />
+    </Transition>
 
     <Transition name="slide-up">
       <div v-if="logVisible"
@@ -168,6 +172,8 @@ onUnmounted(() => {
 <style>
 .slide-up-enter-active, .slide-up-leave-active { transition: transform 0.2s ease, opacity 0.2s ease; }
 .slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); opacity: 0; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 .slim-scroll::-webkit-scrollbar { width: 4px; }
 .slim-scroll::-webkit-scrollbar-track { background: transparent; }
 .slim-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
