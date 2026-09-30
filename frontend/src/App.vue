@@ -15,7 +15,7 @@ const logLines = ref<{ ts: number; level: string; line: string; tunnel_id?: stri
 const opLogs = ref<{ ts: number; action: string; result: string }[]>([])
 const logSearch = ref('')
 const logLevelFilter = ref('')
-const logHeight = ref(192) // px, adjustable by drag
+const logHeight = ref(280) // px, adjustable by drag
 const logFullscreen = ref(false)
 
 function pushLog(p: any) {
@@ -112,11 +112,11 @@ onUnmounted(() => {
     <div v-if="booting" class="flex h-full items-center justify-center">
       <p class="text-sm text-slate-400">正在启动…</p>
     </div>
-    <Transition name="fade">
-      <AuthView v-if="!state.authenticated" :initial-message="state.message" @verified="refresh" />
+    <Transition name="fade" mode="out-in">
+      <AuthView v-if="!state.authenticated" :key="'auth'" :initial-message="state.message" @verified="refresh" />
     </Transition>
-    <Transition name="fade">
-      <MainView v-if="state.authenticated" :state="state" @refresh="refresh" @session-expired="onSessionExpired" @toggle-log="toggleLog" />
+    <Transition name="fade" mode="out-in">
+      <MainView v-if="state.authenticated" :key="'main'" :state="state" @refresh="refresh" @session-expired="onSessionExpired" @toggle-log="toggleLog" />
     </Transition>
 
     <Transition name="slide-up">

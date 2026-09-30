@@ -85,7 +85,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40" @click.self="phase === 'confirm-delete' ? null : emit('close')">
+  <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40" @click.self="phase === 'confirm-delete' ? null : emit('close')">
     <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
       <template v-if="phase === 'detail'">
         <div class="flex items-start justify-between">
