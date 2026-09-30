@@ -53,7 +53,7 @@ func IsAPIError(err error, kind ErrorKind) bool {
 
 const (
 	defaultBaseURL = "https://api.cloudflare.com/client/v4"
-	defaultTimeout = 10 * time.Second
+	defaultTimeout = 30 * time.Second
 	defaultUA      = "CFTunnelKit/0.1"
 )
 
