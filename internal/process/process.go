@@ -41,6 +41,30 @@ const defaultStopTimeout = 5 * time.Second
 // ansiRe strips ANSI color sequences (e.g. \x1b[31m) before pushing logs.
 var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
+// cloudflaredRe matches the zap log level token cloudflared emits
+// (e.g. "2026-09-30T09:30:30Z INF ..."). All cloudflared logs go to stderr,
+// so coloring by stream mislabels every INFO line as an error; we parse the
+// level token out of the line instead.
+var cloudflaredLevelRe = regexp.MustCompile(`\b(INF|WRN|ERR|DBG)\b`)
+
+// logLevel maps a cloudflared log line to INFO/WARN/ERROR/DEBUG.
+func logLevel(line string) string {
+	m := cloudflaredLevelRe.FindStringSubmatch(line)
+	if m == nil {
+		return "INFO"
+	}
+	switch m[1] {
+	case "ERR":
+		return "ERROR"
+	case "WRN":
+		return "WARN"
+	case "DBG":
+		return "DEBUG"
+	default:
+		return "INFO"
+	}
+}
+
 // tunnelProc is one running cloudflared process.
 type tunnelProc struct {
 	cmd     *exec.Cmd
@@ -139,8 +163,8 @@ func (m *Manager) watch(p *tunnelProc, tunnelID string) {
 }
 
 // scanStream reads a command stream line by line and pushes
-// cloudflared:log events {timestamp, stream, line, tunnel_id} with ANSI
-// sequences stripped. The same stripped line is appended to the rolling
+// cloudflared:log events {timestamp, stream, level, line, tunnel_id} with
+// ANSI sequences stripped. The same stripped line is appended to the rolling
 // log file (slice 07b) when a writer is installed.
 func (m *Manager) scanStream(r io.Reader, tunnelID, stream string) {
 	sc := bufio.NewScanner(r)
@@ -153,6 +177,7 @@ func (m *Manager) scanStream(r io.Reader, tunnelID, stream string) {
 		m.emit("cloudflared:log", map[string]interface{}{
 			"timestamp": time.Now().UnixMilli(),
 			"stream":    stream,
+			"level":     logLevel(line),
 			"line":      line,
 			"tunnel_id": tunnelID,
 		})

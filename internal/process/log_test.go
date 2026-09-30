@@ -86,3 +86,21 @@ func TestManager_ScanStream_WritesToLogFile(t *testing.T) {
 		t.Errorf("log contains ANSI escapes, want stripped")
 	}
 }
+
+func TestLogLevelParsing(t *testing.T) {
+	cases := []struct {
+		line string
+		want string
+	}{
+		{"2026-09-30T09:30:30Z INF Starting tunnel", "INFO"},
+		{"2026-09-30T09:30:30Z ERR failed to dial", "ERROR"},
+		{"2026-09-30T09:30:30Z WRN low memory", "WARN"},
+		{"2026-09-30T09:30:30Z DBG debug thing", "DEBUG"},
+		{"no level token here", "INFO"},
+	}
+	for _, c := range cases {
+		if got := logLevel(c.line); got != c.want {
+			t.Errorf("logLevel(%q) = %q, want %q", c.line, got, c.want)
+		}
+	}
+}
