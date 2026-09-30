@@ -352,20 +352,22 @@ func (c *client) ListTunnels(ctx context.Context, accountID string, page, perPag
 	return tunnels, nil
 }
 
-// GetTunnelToken implements CFClient.GetTunnelToken.
+// GetTunnelToken implements CFClient.GetTunnelToken. The Cloudflare API
+// returns the JWT run token directly as the result string (not nested under
+// a "token" key), so we decode result into a string.
 func (c *client) GetTunnelToken(ctx context.Context, accountID, tunnelID string) (string, error) {
 	if strings.TrimSpace(accountID) == "" || strings.TrimSpace(tunnelID) == "" {
 		return "", &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
 	}
-	var tt TunnelToken
+	var s string
 	path := fmt.Sprintf("/accounts/%s/cfd_tunnel/%s/token", accountID, tunnelID)
-	if err := c.getJSON(ctx, path, &tt, "Tunnel:Edit"); err != nil {
+	if err := c.getJSON(ctx, path, &s, "Tunnel:Edit"); err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(tt.Token) == "" {
+	if strings.TrimSpace(s) == "" {
 		return "", &APIError{Kind: KindAPI, Message: "Tunnel 运行 Token 为空"}
 	}
-	return tt.Token, nil
+	return s, nil
 }
 
 // CreateTunnel implements CFClient.CreateTunnel. The name is validated
