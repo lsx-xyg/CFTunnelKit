@@ -48,12 +48,6 @@ type Account struct {
 	Name string `json:"name"`
 }
 
-// TunnelToken is the response of the tunnel run-token endpoint
-// (GET /accounts/{account_id}/cfd_tunnel/{tunnel_id}/token, result.token).
-type TunnelToken struct {
-	Token string `json:"token"`
-}
-
 // TunnelDetail is the full tunnel record for the detail view (issue #6):
 // metadata plus the number of active connections (result.connections).
 type TunnelDetail struct {

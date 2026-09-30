@@ -412,9 +412,7 @@ func TestListTunnels_ServerError500_NetworkError(t *testing.T) {
 
 func TestGetTunnelToken_OK(t *testing.T) {
 	srv := newTestServer(t, map[string]http.HandlerFunc{
-		"GET /accounts/acct1/cfd_tunnel/tun1/token": okJSON(map[string]interface{}{
-			"token": "tok-secret-123",
-		}),
+		"GET /accounts/acct1/cfd_tunnel/tun1/token": okJSON("tok-secret-123"),
 	})
 	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
 	tok, err := c.GetTunnelToken(context.Background(), "acct1", "tun1")
@@ -428,7 +426,7 @@ func TestGetTunnelToken_OK(t *testing.T) {
 
 func TestGetTunnelToken_EmptyResult_TokenEmptyError(t *testing.T) {
 	srv := newTestServer(t, map[string]http.HandlerFunc{
-		"GET /accounts/acct1/cfd_tunnel/tun1/token": okJSON(map[string]interface{}{}),
+		"GET /accounts/acct1/cfd_tunnel/tun1/token": okJSON(""),
 	})
 	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
 	_, err := c.GetTunnelToken(context.Background(), "acct1", "tun1")
