@@ -48,6 +48,12 @@ type Account struct {
 	Name string `json:"name"`
 }
 
+// TunnelToken is the response of the tunnel run-token endpoint
+// (GET /accounts/{account_id}/cfd_tunnel/{tunnel_id}/token, result.token).
+type TunnelToken struct {
+	Token string `json:"token"`
+}
+
 // Zone is a Cloudflare zone as returned by /zones.
 type Zone struct {
 	ID   string `json:"id"`

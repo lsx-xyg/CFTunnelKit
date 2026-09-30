@@ -64,6 +64,16 @@ func DefaultPath() (string, error) {
 	return filepath.Join(home, DirName, FileName), nil
 }
 
+// DefaultBinDir returns the cloudflared binary directory under the same
+// home-based app dir (~/.cftunnelkit/bin; issue #5, slice 03).
+func DefaultBinDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("无法获取用户主目录: %w", err)
+	}
+	return filepath.Join(home, DirName, "bin"), nil
+}
+
 // Load reads the config file. A missing file yields a zero Config with no
 // error (treated as unauthenticated). A corrupt file yields an error, which
 // callers must treat as unauthenticated as well (no crash).

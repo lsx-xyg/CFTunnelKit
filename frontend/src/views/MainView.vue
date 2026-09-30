@@ -1,9 +1,27 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue'
-import { GetAuthState, ListTunnels, RetryVerify } from '../../wailsjs/go/main/App'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { GetAuthState, GetRunStates, ListTunnels, RetryVerify, StartTunnel, StopTunnel } from '../../wailsjs/go/main/App'
+import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 import type { auth, cloudflare } from '../../wailsjs/go/models'
 import PermissionBadge from '../components/PermissionBadge.vue'
 import TunnelStatusBadge from '../components/TunnelStatusBadge.vue'
+
+interface LogPayload {
+  timestamp: number
+  stream: 'stdout' | 'stderr'
+  line: string
+  tunnel_id: string
+}
+interface StatusPayload {
+  tunnel_id: string
+  state: 'running' | 'stopped' | 'error'
+  exit_code?: number
+}
+interface DownloadPayload {
+  phase: 'downloading' | 'extracting' | 'done'
+  downloaded: number
+  total: number
+}
 
 const props = defineProps<{ state: auth.State }>()
 const emit = defineEmits<{ (e: 'refresh'): void; (e: 'session-expired'): void }>()
@@ -13,7 +31,45 @@ const loading = ref(false)
 const tunnels = ref<cloudflare.Tunnel[]>([])
 const listError = ref('')
 
-// Maps backend error strings to the issue #4 copy for the inline error state.
+// --- slice 03: process management state ---
+const runStates = ref<Record<string, string>>({})
+const busy = ref<Record<string, boolean>>({})
+const download = ref<{ active: boolean; phase: string; downloaded: number; total: number }>({
+  active: false,
+  phase: '',
+  downloaded: 0,
+  total: 0,
+})
+const toast = ref('')
+let toastTimer: number | undefined
+
+// Log panel: global ring buffer capped at 5000 lines (issue #5), oldest
+// dropped first.
+const logLines = ref<LogPayload[]>([])
+const logFilter = ref('')
+const logBox = ref<HTMLElement | null>(null)
+
+const runningTunnels = computed(() => tunnels.value.filter((t) => runStates.value[t.id] === 'running'))
+
+const visibleLogs = computed(() => {
+  if (!logFilter.value) return logLines.value
+  return logLines.value.filter((l) => l.tunnel_id === logFilter.value)
+})
+
+function pushLog(p: LogPayload) {
+  logLines.value.push(p)
+  if (logLines.value.length > 5000) {
+    logLines.value.splice(0, logLines.value.length - 5000)
+  }
+}
+
+function showToast(msg: string) {
+  toast.value = msg
+  if (toastTimer) window.clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => (toast.value = ''), 3500)
+}
+
+// Maps backend error strings to the issue copy for the inline error state.
 function friendlyError(e: unknown): string {
   const s = String(e)
   if (s.includes('权限')) return '权限不足，请检查 Token 权限'
@@ -52,13 +108,86 @@ async function retry() {
   }
 }
 
+// --- slice 03: start / stop ---
+async function startTunnel(t: cloudflare.Tunnel) {
+  busy.value[t.id] = true
+  try {
+    await StartTunnel(t.id)
+    runStates.value[t.id] = 'running'
+  } catch (e) {
+    const st = await GetAuthState()
+    if (!st.authenticated) {
+      emit('session-expired')
+      return
+    }
+    showToast(friendlyError(e))
+  } finally {
+    busy.value[t.id] = false
+  }
+}
+
+async function stopTunnel(t: cloudflare.Tunnel) {
+  busy.value[t.id] = true
+  try {
+    await StopTunnel(t.id)
+    runStates.value[t.id] = 'stopped'
+  } catch (e) {
+    showToast(friendlyError(e))
+  } finally {
+    busy.value[t.id] = false
+  }
+}
+
+function tunnelName(id: string): string {
+  return tunnels.value.find((t) => t.id === id)?.name ?? id
+}
+
 function fmtTime(iso: string | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
   return isNaN(d.getTime()) ? iso : d.toLocaleString('zh-CN', { hour12: false })
 }
 
-onMounted(loadTunnels)
+function logTime(ts: number): string {
+  const d = new Date(ts)
+  return d.toLocaleTimeString('zh-CN', { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0')
+}
+
+watch(
+  () => logLines.value.length,
+  async () => {
+    await nextTick()
+    const el = logBox.value
+    if (el) el.scrollTop = el.scrollHeight
+  },
+)
+
+onMounted(async () => {
+  await loadTunnels()
+  runStates.value = await GetRunStates()
+  EventsOn('cloudflared:log', (p: LogPayload) => {
+    pushLog({ ...p, tunnel_id: p.tunnel_id ?? '' })
+  })
+  EventsOn('cloudflared:status', (p: StatusPayload) => {
+    runStates.value[p.tunnel_id] = p.state
+    if (p.state === 'error') {
+      showToast(`Tunnel ${tunnelName(p.tunnel_id)} 意外退出${p.exit_code != null ? `（退出码 ${p.exit_code}）` : ''}`)
+    }
+  })
+  EventsOn('cloudflared:download', (p: DownloadPayload) => {
+    download.value = { active: true, phase: p.phase, downloaded: p.downloaded ?? 0, total: p.total ?? 0 }
+    if (p.phase === 'done') {
+      window.setTimeout(() => (download.value.active = false), 1000)
+    }
+  })
+})
+
+onUnmounted(() => {
+  EventsOff('cloudflared:log')
+  EventsOff('cloudflared:status')
+  EventsOff('cloudflared:download')
+  if (toastTimer) window.clearTimeout(toastTimer)
+})
 
 const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: string }[] = [
   { key: 'tunnel_edit', label: 'Tunnel:Edit' },
@@ -104,6 +233,30 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </button>
     </div>
 
+    <!-- slice 03: cloudflared download progress -->
+    <div
+      v-if="download.active"
+      class="flex items-center justify-between gap-4 border-b border-blue-200 bg-blue-50 px-6 py-2"
+    >
+      <p class="text-sm text-blue-700">
+        {{ download.phase === 'extracting' ? '正在解压 cloudflared…' : download.phase === 'done' ? 'cloudflared 就绪' : '正在下载 cloudflared…' }}
+      </p>
+      <div class="h-2 flex-1 overflow-hidden rounded-full bg-blue-100">
+        <div
+          class="h-2 rounded-full bg-blue-500 transition-all"
+          :style="{
+            width:
+              download.total > 0
+                ? Math.min(100, Math.round((download.downloaded / download.total) * 100)) + '%'
+                : '40%',
+          }"
+        />
+      </div>
+      <span class="text-xs text-blue-500">
+        {{ download.total > 0 ? Math.round((download.downloaded / download.total) * 100) + '%' : '…' }}
+      </span>
+    </div>
+
     <main class="flex-1 overflow-y-auto p-6">
       <!-- loading: skeleton rows -->
       <div v-if="loading" class="space-y-3" aria-busy="true">
@@ -141,8 +294,10 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
             <tr>
               <th class="px-5 py-3 font-medium">名称</th>
               <th class="px-5 py-3 font-medium">状态</th>
+              <th class="px-5 py-3 font-medium">运行</th>
               <th class="px-5 py-3 font-medium">Tunnel ID</th>
               <th class="px-5 py-3 font-medium">创建时间</th>
+              <th class="px-5 py-3 font-medium">操作</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
@@ -151,12 +306,79 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
               <td class="px-5 py-3">
                 <TunnelStatusBadge :status="t.status" />
               </td>
+              <td class="px-5 py-3">
+                <span
+                  class="inline-flex items-center gap-1.5 text-xs"
+                  :class="runStates[t.id] === 'running' ? 'text-green-700' : runStates[t.id] === 'error' ? 'text-red-700' : 'text-slate-400'"
+                >
+                  <span
+                    class="inline-block h-2 w-2 rounded-full"
+                    :class="runStates[t.id] === 'running' ? 'bg-green-500' : runStates[t.id] === 'error' ? 'bg-red-500' : 'bg-slate-300'"
+                  />
+                  {{ runStates[t.id] === 'running' ? '运行中' : runStates[t.id] === 'error' ? '异常退出' : '未运行' }}
+                </span>
+              </td>
               <td class="px-5 py-3 font-mono text-xs text-slate-500">{{ t.id }}</td>
               <td class="px-5 py-3 text-slate-500">{{ fmtTime(t.created_at) }}</td>
+              <td class="px-5 py-3">
+                <button
+                  v-if="runStates[t.id] !== 'running'"
+                  :disabled="busy[t.id]"
+                  class="rounded-md bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:bg-green-300"
+                  @click="startTunnel(t)"
+                >
+                  {{ busy[t.id] ? '启动中…' : '启动' }}
+                </button>
+                <button
+                  v-else
+                  :disabled="busy[t.id]"
+                  class="rounded-md bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300"
+                  @click="stopTunnel(t)"
+                >
+                  {{ busy[t.id] ? '停止中…' : '停止' }}
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <!-- slice 03: log panel -->
+      <section class="mt-4 rounded-xl border border-slate-200 bg-white">
+        <header class="flex items-center justify-between border-b border-slate-200 px-4 py-2">
+          <h2 class="text-sm font-semibold text-slate-700">运行日志</h2>
+          <div class="flex items-center gap-2">
+            <select
+              v-model="logFilter"
+              class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600"
+            >
+              <option value="">全部 Tunnel</option>
+              <option v-for="t in runningTunnels" :key="t.id" :value="t.id">{{ t.name }}</option>
+            </select>
+            <span class="text-xs text-slate-400">{{ visibleLogs.length }} 行</span>
+          </div>
+        </header>
+        <div
+          ref="logBox"
+          class="h-52 overflow-y-auto bg-slate-900 px-3 py-2 font-mono text-xs leading-5 text-slate-100"
+        >
+          <p v-if="visibleLogs.length === 0" class="text-slate-500">暂无日志 — 启动 Tunnel 后实时输出将显示在这里</p>
+          <p v-for="(l, i) in visibleLogs" :key="i" class="whitespace-pre-wrap break-all">
+            <span class="text-slate-500">{{ logTime(l.timestamp) }}</span>
+            <span :class="l.stream === 'stderr' ? 'text-amber-400' : 'text-slate-400'"> {{ l.stream === 'stderr' ? 'ERR' : 'OUT' }} </span>
+            <span v-if="logFilter" class="text-slate-500">{{ tunnelName(l.tunnel_id) }}:</span>
+            <span>{{ l.line }}</span>
+          </p>
+        </div>
+      </section>
     </main>
+
+    <!-- toast -->
+    <div
+      v-if="toast"
+      class="fixed right-6 top-6 z-50 max-w-sm rounded-lg bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg"
+    >
+      {{ toast }}
+    </div>
   </div>
 </template>

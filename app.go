@@ -6,6 +6,8 @@ import (
 	"github.com/lsx-xyg/CFTunnelKit/internal/auth"
 	"github.com/lsx-xyg/CFTunnelKit/internal/cloudflare"
 	"github.com/lsx-xyg/CFTunnelKit/internal/config"
+	"github.com/lsx-xyg/CFTunnelKit/internal/process"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App is the Wails application root. Its exported methods become the
@@ -13,18 +15,30 @@ import (
 type App struct {
 	ctx  context.Context
 	auth *auth.Service
+	pm   process.ProcessManager
 }
 
-// NewApp creates the App with a config store at the default location.
+// NewApp creates the App with a config store and the process manager at the
+// default locations. Events emitted by the manager are forwarded to the
+// frontend via Wails Events (cloudflared:log / cloudflared:status /
+// cloudflared:download).
 func NewApp() *App {
 	path, err := config.DefaultPath()
 	if err != nil {
 		// Practically unreachable (home dir always exists); fail loudly.
 		panic(err)
 	}
-	return &App{
-		auth: auth.NewService(config.NewStore(path)),
+	binDir, err := config.DefaultBinDir()
+	if err != nil {
+		panic(err)
 	}
+	a := &App{auth: auth.NewService(config.NewStore(path))}
+	a.pm = process.NewManager(binDir, func(event string, payload interface{}) {
+		if a.ctx != nil {
+			runtime.EventsEmit(a.ctx, event, payload)
+		}
+	})
+	return a
 }
 
 // startup is called by Wails when the app boots. Only the persisted state is
@@ -33,6 +47,14 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.auth.LoadPersisted()
+}
+
+// shutdown is wired to Wails OnShutdown: every running cloudflared process
+// is stopped gracefully before the app exits (issue #5).
+func (a *App) shutdown(ctx context.Context) {
+	if a.pm != nil {
+		_ = a.pm.StopAll()
+	}
 }
 
 func (a *App) ctxOrBackground() context.Context {
@@ -68,4 +90,34 @@ func (a *App) RetryVerify() (cloudflare.TokenInfo, error) {
 // inline with a retry button.
 func (a *App) ListTunnels() ([]cloudflare.Tunnel, error) {
 	return a.auth.ListTunnels(a.ctxOrBackground())
+}
+
+// ---- slice 03: cloudflared process bindings ----
+
+// StartTunnel fetches the tunnel run token and launches cloudflared for it.
+// The binary is auto-downloaded on first use (progress via
+// cloudflared:download events). A duplicate start returns
+// "该 Tunnel 已在运行".
+func (a *App) StartTunnel(tunnelID string) error {
+	tok, err := a.auth.GetTunnelToken(a.ctxOrBackground(), tunnelID)
+	if err != nil {
+		return err
+	}
+	return a.pm.Start(a.ctxOrBackground(), tunnelID, tok)
+}
+
+// StopTunnel gracefully stops one tunnel process.
+func (a *App) StopTunnel(tunnelID string) error {
+	return a.pm.Stop(tunnelID)
+}
+
+// StopAllTunnels stops every running tunnel (frontend "全部停止" / shutdown).
+func (a *App) StopAllTunnels() error {
+	return a.pm.StopAll()
+}
+
+// GetRunStates returns a snapshot of currently running tunnel IDs
+// (tunnelID → "running").
+func (a *App) GetRunStates() map[string]string {
+	return a.pm.RunStates()
 }

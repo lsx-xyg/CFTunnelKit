@@ -5,8 +5,16 @@ import {cloudflare} from '../models';
 
 export function GetAuthState():Promise<auth.State>;
 
+export function GetRunStates():Promise<Record<string, string>>;
+
 export function ListTunnels():Promise<Array<cloudflare.Tunnel>>;
 
 export function RetryVerify():Promise<cloudflare.TokenInfo>;
+
+export function StartTunnel(arg1:string):Promise<void>;
+
+export function StopAllTunnels():Promise<void>;
+
+export function StopTunnel(arg1:string):Promise<void>;
 
 export function VerifyAndSaveToken(arg1:string):Promise<cloudflare.TokenInfo>;
