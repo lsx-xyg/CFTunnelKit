@@ -260,7 +260,7 @@ func TestVerifyToken_ConnectionRefused_NetworkError(t *testing.T) {
 
 func TestListTunnels_EmptyAccountID_AuthError(t *testing.T) {
 	c := New(Options{Token: testToken}).(*client)
-	_, err := c.ListTunnels(context.Background(), "")
+	_, err := c.ListTunnels(context.Background(), "", 1, 50)
 	if !IsAPIError(err, KindAuth) {
 		t.Fatalf("error = %v, want KindAuth", err)
 	}
@@ -269,14 +269,29 @@ func TestListTunnels_EmptyAccountID_AuthError(t *testing.T) {
 	}
 }
 
-func TestListTunnels_OK(t *testing.T) {
+// listTunnelsHandler asserts the page/per_page query parameters and returns
+// a fixed tunnel list.
+func listTunnelsHandler(t *testing.T, wantPage, wantPerPage string, result interface{}) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if got := q.Get("page"); got != wantPage {
+			t.Errorf("page = %q, want %q", got, wantPage)
+		}
+		if got := q.Get("per_page"); got != wantPerPage {
+			t.Errorf("per_page = %q, want %q", got, wantPerPage)
+		}
+		_ = json.NewEncoder(w).Encode(cfOK(result))
+	}
+}
+
+func TestListTunnels_OK_PinsPage1PerPage50(t *testing.T) {
 	srv := newTestServer(t, map[string]http.HandlerFunc{
-		"GET /accounts/acct1/cfd_tunnel": okJSON([]map[string]interface{}{
+		"GET /accounts/acct1/cfd_tunnel": listTunnelsHandler(t, "1", "50", []map[string]interface{}{
 			{"id": "t1", "name": "tunnel-a", "status": "healthy", "created_at": "2026-01-01T00:00:00Z"},
 		}),
 	})
 	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
-	tunnels, err := c.ListTunnels(context.Background(), "acct1")
+	tunnels, err := c.ListTunnels(context.Background(), "acct1", 1, 50)
 	if err != nil {
 		t.Fatalf("ListTunnels: unexpected error: %v", err)
 	}
@@ -291,16 +306,61 @@ func TestListTunnels_OK(t *testing.T) {
 	}
 }
 
+func TestListTunnels_PassesThroughPageAndPerPage(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel": listTunnelsHandler(t, "2", "25", []interface{}{}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	if _, err := c.ListTunnels(context.Background(), "acct1", 2, 25); err != nil {
+		t.Fatalf("ListTunnels: unexpected error: %v", err)
+	}
+}
+
+func TestListTunnels_ZeroArgs_DefaultsToPage1PerPage50(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel": listTunnelsHandler(t, "1", "50", []interface{}{}),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	if _, err := c.ListTunnels(context.Background(), "acct1", 0, 0); err != nil {
+		t.Fatalf("ListTunnels: unexpected error: %v", err)
+	}
+}
+
+func TestListTunnels_Unauthorized_AuthError(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel": cfErr(http.StatusUnauthorized),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	_, err := c.ListTunnels(context.Background(), "acct1", 1, 50)
+	if !IsAPIError(err, KindAuth) {
+		t.Fatalf("error = %v, want KindAuth", err)
+	}
+	if !strings.Contains(err.Error(), "Token 无效或已失效") {
+		t.Errorf("message = %q, want to contain 无效或已失效", err.Error())
+	}
+}
+
 func TestListTunnels_Forbidden_PermissionError(t *testing.T) {
 	srv := newTestServer(t, map[string]http.HandlerFunc{
 		"GET /accounts/acct1/cfd_tunnel": cfErr(http.StatusForbidden),
 	})
 	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
-	_, err := c.ListTunnels(context.Background(), "acct1")
+	_, err := c.ListTunnels(context.Background(), "acct1", 1, 50)
 	if !IsAPIError(err, KindPermission) {
 		t.Fatalf("error = %v, want KindPermission", err)
 	}
 	if !strings.Contains(err.Error(), "Tunnel:Edit") {
 		t.Errorf("message = %q, want to contain Tunnel:Edit", err.Error())
+	}
+}
+
+func TestListTunnels_ServerError500_NetworkError(t *testing.T) {
+	srv := newTestServer(t, map[string]http.HandlerFunc{
+		"GET /accounts/acct1/cfd_tunnel": cfErr(http.StatusInternalServerError),
+	})
+	c := New(Options{BaseURL: srv.URL, Token: testToken}).(*client)
+	_, err := c.ListTunnels(context.Background(), "acct1", 1, 50)
+	if !IsAPIError(err, KindNetwork) {
+		t.Fatalf("error = %v, want KindNetwork", err)
 	}
 }

@@ -60,3 +60,12 @@ func (a *App) VerifyAndSaveToken(token string) (cloudflare.TokenInfo, error) {
 func (a *App) RetryVerify() (cloudflare.TokenInfo, error) {
 	return a.auth.RetryVerify(a.ctxOrBackground())
 }
+
+// ListTunnels returns the account's tunnels (page=1, per_page=50).
+// An auth failure clears the persisted config and resets the state, so the
+// frontend can detect the session expiry via GetAuthState and jump to the
+// auth page; permission/network errors keep the state and are rendered
+// inline with a retry button.
+func (a *App) ListTunnels() ([]cloudflare.Tunnel, error) {
+	return a.auth.ListTunnels(a.ctxOrBackground())
+}

@@ -175,3 +175,30 @@ func (s *Service) RetryVerify(ctx context.Context) (cloudflare.TokenInfo, error)
 	s.mu.Unlock()
 	return info, nil
 }
+
+// ListTunnels fetches the tunnels for the persisted account (page=1,
+// per_page=50, see slice 02). On an auth failure (401 / no token / no
+// account) the persisted config is cleared and the state is reset, so the
+// frontend can detect the session expiry via GetState and jump to the auth
+// page. Permission and network errors leave the state untouched.
+func (s *Service) ListTunnels(ctx context.Context) ([]cloudflare.Tunnel, error) {
+	cfg, err := s.store.Load()
+	if err != nil {
+		return nil, &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "Token 已失效，请重新输入"}
+	}
+	if strings.TrimSpace(cfg.APIToken) == "" || strings.TrimSpace(cfg.AccountID) == "" {
+		return nil, &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "账户未解析，请重新认证"}
+	}
+
+	tunnels, err := s.newClient(cfg.APIToken).ListTunnels(ctx, cfg.AccountID, 1, 50)
+	if err != nil {
+		if cloudflare.IsAPIError(err, cloudflare.KindAuth) {
+			_ = s.store.Clear()
+			s.mu.Lock()
+			s.state = State{}
+			s.mu.Unlock()
+		}
+		return nil, err
+	}
+	return tunnels, nil
+}

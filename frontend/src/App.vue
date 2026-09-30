@@ -29,6 +29,14 @@ async function refresh() {
   booting.value = false
 }
 
+// The backend cleared the persisted config and reset the state on an auth
+// failure (issue #4, 401 path); jump back to the auth page with the
+// session-expiry message.
+async function onSessionExpired() {
+  state.value = await GetAuthState()
+  state.value.message = 'Token 已失效，请重新输入'
+}
+
 onMounted(refresh)
 </script>
 
@@ -38,6 +46,6 @@ onMounted(refresh)
       <p class="text-sm text-slate-400">正在启动…</p>
     </div>
     <AuthView v-else-if="!state.authenticated" :initial-message="state.message" @verified="refresh" />
-    <MainView v-else :state="state" @refresh="refresh" />
+    <MainView v-else :state="state" @refresh="refresh" @session-expired="onSessionExpired" />
   </div>
 </template>

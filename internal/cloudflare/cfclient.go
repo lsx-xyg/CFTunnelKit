@@ -270,13 +270,21 @@ func (c *client) resolveAccount(ctx context.Context) (Account, bool, error) {
 	return Account{}, false, &APIError{Kind: KindAuth, Message: "无法解析账户，请检查 Token 是否包含 Account 读取权限"}
 }
 
-// ListTunnels implements CFClient.ListTunnels.
-func (c *client) ListTunnels(ctx context.Context, accountID string) ([]Tunnel, error) {
+// ListTunnels implements CFClient.ListTunnels. page/perPage default to
+// 1/50 when zero or negative.
+func (c *client) ListTunnels(ctx context.Context, accountID string, page, perPage int) ([]Tunnel, error) {
 	if strings.TrimSpace(accountID) == "" {
 		return nil, &APIError{Kind: KindAuth, Message: "账户未解析，请重新认证"}
 	}
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 50
+	}
 	var tunnels []Tunnel
-	if err := c.getJSON(ctx, "/accounts/"+accountID+"/cfd_tunnel", &tunnels, "Tunnel:Edit"); err != nil {
+	path := fmt.Sprintf("/accounts/%s/cfd_tunnel?page=%d&per_page=%d", accountID, page, perPage)
+	if err := c.getJSON(ctx, path, &tunnels, "Tunnel:Edit"); err != nil {
 		return nil, err
 	}
 	return tunnels, nil
