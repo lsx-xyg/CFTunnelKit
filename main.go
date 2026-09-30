@@ -2,16 +2,24 @@ package main
 
 import (
 	"embed"
+	"log/slog"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+
+	"github.com/lsx-xyg/CFTunnelKit/internal/applog"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
+	if _, err := applog.Init(); err != nil {
+		println("warn: applog init failed:", err.Error())
+	}
+	slog.Info("=== CFTunnelKit starting ===")
+
 	// Create an instance of the app structure
 	app := NewApp()
 

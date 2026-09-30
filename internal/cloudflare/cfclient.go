@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -122,12 +123,14 @@ func (c *client) deleteJSON(ctx context.Context, path string, out interface{}, p
 // e.g. delete) → "该 Tunnel 有活跃连接，请先停止隧道", anything else →
 // network.
 func (c *client) doJSON(ctx context.Context, method, path string, body []byte, out interface{}, perm string) error {
+	t0 := time.Now()
 	var rdr io.Reader
 	if body != nil {
 		rdr = strings.NewReader(string(body))
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, rdr)
 	if err != nil {
+		slog.Error("build request failed", "method", method, "path", path, "err", err)
 		return &APIError{Kind: KindNetwork, Message: "无法连接 Cloudflare API", Cause: err}
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
@@ -137,16 +140,20 @@ func (c *client) doJSON(ctx context.Context, method, path string, body []byte, o
 		req.Header.Set("Content-Type", "application/json")
 	}
 
+	slog.Debug("API request", "method", method, "path", path)
 	resp, err := c.hc.Do(req)
 	if err != nil {
+		slog.Warn("API request failed", "method", method, "path", path, "err", err, "dur_ms", time.Since(t0).Milliseconds())
 		return &APIError{Kind: KindNetwork, Message: "无法连接 Cloudflare API", Cause: err}
 	}
 	defer resp.Body.Close()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
+		slog.Warn("read response failed", "method", method, "path", path, "status", resp.StatusCode, "err", err)
 		return &APIError{Kind: KindNetwork, Message: "无法连接 Cloudflare API", Cause: err}
 	}
+	slog.Debug("API response", "method", method, "path", path, "status", resp.StatusCode, "dur_ms", time.Since(t0).Milliseconds(), "bytes", len(raw))
 
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated:

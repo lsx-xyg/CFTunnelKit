@@ -27,6 +27,10 @@ export function ListTunnels():Promise<Array<cloudflare.Tunnel>>;
 
 export function ListZones():Promise<Array<cloudflare.Zone>>;
 
+export function LogDir():Promise<string>;
+
+export function OpenLogDir():Promise<void>;
+
 export function RetryVerify():Promise<cloudflare.TokenInfo>;
 
 export function SaveIngressConfig(arg1:string,arg2:Array<cloudflare.IngressRule>):Promise<Array<cloudflare.IngressRule>>;
