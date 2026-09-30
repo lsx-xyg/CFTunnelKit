@@ -28,8 +28,10 @@ type State struct {
 // Service owns the authentication state machine.
 type Service struct {
 	store *config.Store
+	// proxy is the optional explicit proxy URL for Cloudflare API calls.
+	proxy string
 	// newClient is the client factory; tests replace it with a fake.
-	newClient func(token string) cloudflare.CFClient
+	newClient func(token, proxy string) cloudflare.CFClient
 
 	mu    sync.Mutex
 	state State
@@ -37,13 +39,34 @@ type Service struct {
 
 // NewService builds a Service bound to the given config store.
 func NewService(store *config.Store) *Service {
-	return &Service{
+	s := &Service{
 		store: store,
-		newClient: func(token string) cloudflare.CFClient {
-			return cloudflare.New(cloudflare.Options{Token: token})
-		},
 		state: State{},
 	}
+	// Load saved proxy from config.
+	if cfg, err := store.Load(); err == nil {
+		s.proxy = cfg.Proxy
+	}
+	s.newClient = func(token, proxy string) cloudflare.CFClient {
+		return cloudflare.New(cloudflare.Options{Token: token, Proxy: proxy})
+	}
+	return s
+}
+
+// SetProxy updates the proxy URL and persists it to config.
+func (s *Service) SetProxy(proxy string) error {
+	s.proxy = proxy
+	cfg, err := s.store.Load()
+	if err != nil {
+		cfg = config.Config{}
+	}
+	cfg.Proxy = proxy
+	return s.store.Save(cfg)
+}
+
+// GetProxy returns the current proxy URL.
+func (s *Service) GetProxy() string {
+	return s.proxy
 }
 
 // GetState returns a copy of the current authentication state.
@@ -62,7 +85,7 @@ func (s *Service) VerifyAndSaveToken(ctx context.Context, token string) (cloudfl
 		return cloudflare.TokenInfo{}, &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "Token 不能为空"}
 	}
 
-	info, err := s.newClient(token).VerifyToken(ctx)
+	info, err := s.newClient(token, s.proxy).VerifyToken(ctx)
 	if err != nil {
 		return cloudflare.TokenInfo{}, err
 	}
@@ -149,7 +172,7 @@ func (s *Service) RetryVerify(ctx context.Context) (cloudflare.TokenInfo, error)
 		return cloudflare.TokenInfo{}, &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "Token 已失效，请重新输入"}
 	}
 
-	info, err := s.newClient(cfg.APIToken).VerifyToken(ctx)
+	info, err := s.newClient(cfg.APIToken, s.proxy).VerifyToken(ctx)
 	if err != nil {
 		switch {
 		case cloudflare.IsAPIError(err, cloudflare.KindAuth):
@@ -355,7 +378,7 @@ func (s *Service) authenticatedClient(ctx context.Context) (cloudflare.CFClient,
 	if strings.TrimSpace(cfg.APIToken) == "" || strings.TrimSpace(cfg.AccountID) == "" {
 		return nil, "", &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "账户未解析，请重新认证"}
 	}
-	return s.newClient(cfg.APIToken), cfg.AccountID, nil
+	return s.newClient(cfg.APIToken, s.proxy), cfg.AccountID, nil
 }
 
 // clearOnAuth clears the persisted config and resets the state when err is
