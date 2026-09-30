@@ -214,12 +214,12 @@ function logLevelLabel(level: string): string {
   }
 }
 
-function logLevelClass(level: string): string {
+function logLevelBadgeClass(level: string): string {
   switch (level) {
-    case 'ERROR': return 'text-red-400'
-    case 'WARN': return 'text-amber-400'
-    case 'DEBUG': return 'text-slate-600'
-    default: return 'text-slate-400'
+    case 'ERROR': return 'bg-red-500/30 text-red-300'
+    case 'WARN': return 'bg-amber-500/30 text-amber-300'
+    case 'DEBUG': return 'bg-slate-600/30 text-slate-500'
+    default: return 'bg-slate-700/50 text-slate-400'
   }
 }
 
@@ -478,16 +478,16 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
         <div
           ref="logBox"
           class="overflow-y-auto bg-slate-900 px-3 py-2 font-mono text-xs leading-5 text-slate-100"
-          :class="logFullscreen ? 'flex-1' : 'h-52'"
+          :class="logFullscreen ? 'flex-1' : 'h-80'"
         >
           <!-- runtime cloudflared logs -->
           <template v-if="logTab === 'runtime'">
             <p v-if="visibleLogs.length === 0" class="text-slate-500">暂无日志 — 启动 Tunnel 后实时输出将显示在这里</p>
-            <p v-for="(l, i) in visibleLogs" :key="i" class="whitespace-pre-wrap break-all">
-              <span class="text-slate-500">{{ logTime(l.timestamp) }}</span>
-              <span :class="logLevelClass(l.level)"> {{ logLevelLabel(l.level) }} </span>
-              <span v-if="logFilter" class="text-slate-500">{{ tunnelName(l.tunnel_id) }}:</span>
-              <span>{{ l.line }}</span>
+            <p v-for="(l, i) in visibleLogs" :key="i" class="flex gap-2 whitespace-pre-wrap break-all">
+              <span class="shrink-0 text-slate-500">{{ logTime(l.timestamp) }}</span>
+              <span :class="logLevelBadgeClass(l.level)" class="w-10 shrink-0 rounded text-center">{{ logLevelLabel(l.level) }}</span>
+              <span v-if="logFilter" class="shrink-0 text-slate-500">{{ tunnelName(l.tunnel_id) }}:</span>
+              <span class="break-all">{{ l.line }}</span>
             </p>
           </template>
           <!-- operation log -->
