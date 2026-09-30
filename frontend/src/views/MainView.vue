@@ -434,8 +434,13 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           <tbody class="divide-y divide-slate-100">
             <tr v-for="t in tunnels" :key="t.id" class="hover:bg-slate-50">
               <td class="px-4 py-2.5 font-medium text-slate-900">{{ t.name }}</td>
-              <td class="px-4 py-2.5">
-                <TunnelStatusBadge :status="t.status" />
+              <td class="px-4 py-2.5 whitespace-nowrap">
+                <span
+                  class="inline-flex min-w-[4rem] items-center justify-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1"
+                  :class="runStates[t.id] === 'running' ? 'bg-green-100 text-green-700 ring-green-200' : runStates[t.id] === 'error' ? 'bg-red-100 text-red-700 ring-red-200' : 'bg-slate-200 text-slate-600 ring-slate-300'"
+                >
+                  {{ runStates[t.id] === 'running' ? '运行中' : runStates[t.id] === 'error' ? '异常' : '未运行' }}
+                </span>
               </td>
               <td class="px-4 py-2.5">
                 <span
