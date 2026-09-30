@@ -58,6 +58,10 @@ export function OpenLogDir() {
   return window['go']['main']['App']['OpenLogDir']();
 }
 
+export function Quit() {
+  return window['go']['main']['App']['Quit']();
+}
+
 export function RetryVerify() {
   return window['go']['main']['App']['RetryVerify']();
 }

@@ -31,6 +31,8 @@ export function LogDir():Promise<string>;
 
 export function OpenLogDir():Promise<void>;
 
+export function Quit():Promise<void>;
+
 export function RetryVerify():Promise<cloudflare.TokenInfo>;
 
 export function SaveIngressConfig(arg1:string,arg2:Array<cloudflare.IngressRule>):Promise<Array<cloudflare.IngressRule>>;
