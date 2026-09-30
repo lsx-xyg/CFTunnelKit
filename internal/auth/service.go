@@ -182,23 +182,13 @@ func (s *Service) RetryVerify(ctx context.Context) (cloudflare.TokenInfo, error)
 // frontend can detect the session expiry via GetState and jump to the auth
 // page. Permission and network errors leave the state untouched.
 func (s *Service) ListTunnels(ctx context.Context) ([]cloudflare.Tunnel, error) {
-	cfg, err := s.store.Load()
+	cl, accountID, err := s.authenticatedClient(ctx)
 	if err != nil {
-		return nil, &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "Token 已失效，请重新输入"}
-	}
-	if strings.TrimSpace(cfg.APIToken) == "" || strings.TrimSpace(cfg.AccountID) == "" {
-		return nil, &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "账户未解析，请重新认证"}
-	}
-
-	tunnels, err := s.newClient(cfg.APIToken).ListTunnels(ctx, cfg.AccountID, 1, 50)
-	if err != nil {
-		if cloudflare.IsAPIError(err, cloudflare.KindAuth) {
-			_ = s.store.Clear()
-			s.mu.Lock()
-			s.state = State{}
-			s.mu.Unlock()
-		}
 		return nil, err
+	}
+	tunnels, err := cl.ListTunnels(ctx, accountID, 1, 50)
+	if err != nil {
+		return nil, s.clearOnAuth(err)
 	}
 	return tunnels, nil
 }
@@ -207,23 +197,75 @@ func (s *Service) ListTunnels(ctx context.Context) ([]cloudflare.Tunnel, error) 
 // start cloudflared). Auth failures clear the persisted config and reset
 // the state, exactly like ListTunnels.
 func (s *Service) GetTunnelToken(ctx context.Context, tunnelID string) (string, error) {
-	cfg, err := s.store.Load()
+	cl, accountID, err := s.authenticatedClient(ctx)
 	if err != nil {
-		return "", &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "Token 已失效，请重新输入"}
-	}
-	if strings.TrimSpace(cfg.APIToken) == "" || strings.TrimSpace(cfg.AccountID) == "" {
-		return "", &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "账户未解析，请重新认证"}
-	}
-
-	tok, err := s.newClient(cfg.APIToken).GetTunnelToken(ctx, cfg.AccountID, tunnelID)
-	if err != nil {
-		if cloudflare.IsAPIError(err, cloudflare.KindAuth) {
-			_ = s.store.Clear()
-			s.mu.Lock()
-			s.state = State{}
-			s.mu.Unlock()
-		}
 		return "", err
 	}
+	tok, err := cl.GetTunnelToken(ctx, accountID, tunnelID)
+	if err != nil {
+		return "", s.clearOnAuth(err)
+	}
 	return tok, nil
+}
+
+// CreateTunnel creates a remotely-managed tunnel (issue #6). The name is
+// validated frontend-side; 409 surfaces as "同名 Tunnel 已存在".
+func (s *Service) CreateTunnel(ctx context.Context, name string) (cloudflare.Tunnel, error) {
+	cl, accountID, err := s.authenticatedClient(ctx)
+	if err != nil {
+		return cloudflare.Tunnel{}, err
+	}
+	t, err := cl.CreateTunnel(ctx, accountID, name)
+	if err != nil {
+		return cloudflare.Tunnel{}, s.clearOnAuth(err)
+	}
+	return t, nil
+}
+
+// DeleteTunnel deletes a tunnel (issue #6). Active-connection errors
+// surface as "该 Tunnel 有活跃连接，请先停止隧道".
+func (s *Service) DeleteTunnel(ctx context.Context, tunnelID string) error {
+	cl, accountID, err := s.authenticatedClient(ctx)
+	if err != nil {
+		return err
+	}
+	return s.clearOnAuth(cl.DeleteTunnel(ctx, accountID, tunnelID))
+}
+
+// GetTunnelDetail fetches one tunnel's full record (issue #6).
+func (s *Service) GetTunnelDetail(ctx context.Context, tunnelID string) (cloudflare.TunnelDetail, error) {
+	cl, accountID, err := s.authenticatedClient(ctx)
+	if err != nil {
+		return cloudflare.TunnelDetail{}, err
+	}
+	d, err := cl.GetTunnelDetail(ctx, accountID, tunnelID)
+	if err != nil {
+		return cloudflare.TunnelDetail{}, s.clearOnAuth(err)
+	}
+	return d, nil
+}
+
+// authenticatedClient loads the persisted config and returns a client for
+// the stored account. Missing/corrupt config yields an AuthError.
+func (s *Service) authenticatedClient(ctx context.Context) (cloudflare.CFClient, string, error) {
+	cfg, err := s.store.Load()
+	if err != nil {
+		return nil, "", &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "Token 已失效，请重新输入"}
+	}
+	if strings.TrimSpace(cfg.APIToken) == "" || strings.TrimSpace(cfg.AccountID) == "" {
+		return nil, "", &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "账户未解析，请重新认证"}
+	}
+	return s.newClient(cfg.APIToken), cfg.AccountID, nil
+}
+
+// clearOnAuth clears the persisted config and resets the state when err is
+// an auth failure, so the frontend can detect session expiry via GetState.
+func (s *Service) clearOnAuth(err error) error {
+	if cloudflare.IsAPIError(err, cloudflare.KindAuth) {
+		_ = s.store.Clear()
+		s.mu.Lock()
+		s.state = State{}
+		s.mu.Unlock()
+	}
+	return err
 }

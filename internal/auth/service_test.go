@@ -17,6 +17,9 @@ type fakeClient struct {
 	verifyFn func(ctx context.Context) (cloudflare.TokenInfo, error)
 	listFn   func(ctx context.Context, accountID string, page, perPage int) ([]cloudflare.Tunnel, error)
 	tokenFn  func(ctx context.Context, accountID, tunnelID string) (string, error)
+	createFn func(ctx context.Context, accountID, name string) (cloudflare.Tunnel, error)
+	deleteFn func(ctx context.Context, accountID, tunnelID string) error
+	detailFn func(ctx context.Context, accountID, tunnelID string) (cloudflare.TunnelDetail, error)
 }
 
 func (f *fakeClient) VerifyToken(ctx context.Context) (cloudflare.TokenInfo, error) {
@@ -29,6 +32,18 @@ func (f *fakeClient) ListTunnels(ctx context.Context, accountID string, page, pe
 
 func (f *fakeClient) GetTunnelToken(ctx context.Context, accountID, tunnelID string) (string, error) {
 	return f.tokenFn(ctx, accountID, tunnelID)
+}
+
+func (f *fakeClient) CreateTunnel(ctx context.Context, accountID, name string) (cloudflare.Tunnel, error) {
+	return f.createFn(ctx, accountID, name)
+}
+
+func (f *fakeClient) DeleteTunnel(ctx context.Context, accountID, tunnelID string) error {
+	return f.deleteFn(ctx, accountID, tunnelID)
+}
+
+func (f *fakeClient) GetTunnelDetail(ctx context.Context, accountID, tunnelID string) (cloudflare.TunnelDetail, error) {
+	return f.detailFn(ctx, accountID, tunnelID)
 }
 
 func newTestService(t *testing.T, c cloudflare.CFClient) (*Service, *config.Store) {
@@ -370,5 +385,95 @@ func TestGetTunnelToken_PermissionError_StateUntouched(t *testing.T) {
 	st := svc.GetState()
 	if !st.Authenticated || !st.HasToken {
 		t.Errorf("state = %+v, want untouched", st)
+	}
+}
+
+func TestCreateTunnel_Success_PassesName(t *testing.T) {
+	var gotName string
+	svc, _ := newListService(t, &fakeClient{createFn: func(ctx context.Context, accountID, name string) (cloudflare.Tunnel, error) {
+		gotName = name
+		return cloudflare.Tunnel{ID: "t9", Name: name, Status: "inactive"}, nil
+	}}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	tun, err := svc.CreateTunnel(context.Background(), "my-tunnel")
+	if err != nil {
+		t.Fatalf("CreateTunnel: %v", err)
+	}
+	if tun.Name != "my-tunnel" || tun.ID != "t9" {
+		t.Errorf("tunnel = %+v, want my-tunnel/t9", tun)
+	}
+	if gotName != "my-tunnel" {
+		t.Errorf("client got name = %q, want my-tunnel", gotName)
+	}
+}
+
+func TestCreateTunnel_ConflictError_Passthrough(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{createFn: func(ctx context.Context, accountID, name string) (cloudflare.Tunnel, error) {
+		return cloudflare.Tunnel{}, &cloudflare.APIError{Kind: cloudflare.KindAPI, Message: "同名 Tunnel 已存在"}
+	}}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	_, err := svc.CreateTunnel(context.Background(), "dup")
+	if !cloudflare.IsAPIError(err, cloudflare.KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+	if !strings.Contains(err.Error(), "同名 Tunnel 已存在") {
+		t.Errorf("message = %q, want to contain 同名 Tunnel 已存在", err.Error())
+	}
+}
+
+func TestCreateTunnel_AuthError_ClearsConfig(t *testing.T) {
+	svc, store := newListService(t, &fakeClient{createFn: func(ctx context.Context, accountID, name string) (cloudflare.Tunnel, error) {
+		return cloudflare.Tunnel{}, &cloudflare.APIError{Kind: cloudflare.KindAuth, Message: "Token 无效或已失效"}
+	}}, config.Config{APIToken: "tok-expired", AccountID: "acct1"})
+
+	_, err := svc.CreateTunnel(context.Background(), "x")
+	if !cloudflare.IsAPIError(err, cloudflare.KindAuth) {
+		t.Fatalf("error = %v, want KindAuth", err)
+	}
+	if _, statErr := os.Stat(store.Path()); statErr == nil {
+		t.Error("config should be cleared on auth failure")
+	}
+}
+
+func TestDeleteTunnel_Success(t *testing.T) {
+	var deleted string
+	svc, _ := newListService(t, &fakeClient{deleteFn: func(ctx context.Context, accountID, tunnelID string) error {
+		deleted = tunnelID
+		return nil
+	}}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	if err := svc.DeleteTunnel(context.Background(), "tun1"); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+	if deleted != "tun1" {
+		t.Errorf("deleted = %q, want tun1", deleted)
+	}
+}
+
+func TestDeleteTunnel_ActiveConnections_Passthrough(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{deleteFn: func(ctx context.Context, accountID, tunnelID string) error {
+		return &cloudflare.APIError{Kind: cloudflare.KindAPI, Message: "该 Tunnel 有活跃连接，请先停止隧道"}
+	}}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	err := svc.DeleteTunnel(context.Background(), "tun1")
+	if !cloudflare.IsAPIError(err, cloudflare.KindAPI) {
+		t.Fatalf("error = %v, want KindAPI", err)
+	}
+	if !strings.Contains(err.Error(), "请先停止隧道") {
+		t.Errorf("message = %q, want to contain 请先停止隧道", err.Error())
+	}
+}
+
+func TestGetTunnelDetail_Success(t *testing.T) {
+	svc, _ := newListService(t, &fakeClient{detailFn: func(ctx context.Context, accountID, tunnelID string) (cloudflare.TunnelDetail, error) {
+		return cloudflare.TunnelDetail{ID: tunnelID, Name: "tunnel-a", Status: "healthy", Connections: 2}, nil
+	}}, config.Config{APIToken: "tok-abc", AccountID: "acct1"})
+
+	d, err := svc.GetTunnelDetail(context.Background(), "tun1")
+	if err != nil {
+		t.Fatalf("GetTunnelDetail: %v", err)
+	}
+	if d.Connections != 2 || d.Name != "tunnel-a" {
+		t.Errorf("detail = %+v, want tunnel-a/2 connections", d)
 	}
 }

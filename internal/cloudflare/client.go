@@ -23,4 +23,14 @@ type CFClient interface {
 	// (GET /accounts/{id}/cfd_tunnel/{tunnel_id}/token → result.token).
 	// 403 maps to a permission error, 404 to an API error.
 	GetTunnelToken(ctx context.Context, accountID, tunnelID string) (string, error)
+	// CreateTunnel creates a remotely-managed tunnel
+	// (POST body {name, config_src: "cloudflare"}). 409 maps to
+	// "同名 Tunnel 已存在", 403 to a permission error.
+	CreateTunnel(ctx context.Context, accountID, name string) (Tunnel, error)
+	// DeleteTunnel deletes a tunnel. Deleting a tunnel with active
+	// connections yields "该 Tunnel 有活跃连接，请先停止隧道".
+	DeleteTunnel(ctx context.Context, accountID, tunnelID string) error
+	// GetTunnelDetail returns the full record for one tunnel, including
+	// the number of active connections.
+	GetTunnelDetail(ctx context.Context, accountID, tunnelID string) (TunnelDetail, error)
 }
