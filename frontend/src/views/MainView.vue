@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { GetAuthState, GetRunStates, ListTunnels, OpenLogDir, RetryVerify, StartTunnel, StopTunnel, WriteOpLog } from '../../wailsjs/go/main/App'
+import { GetAuthState, GetRunStates, GetServiceStatus, InstallService, ListTunnels, OpenLogDir, RetryVerify, StartService, StartTunnel, StopService, StopTunnel, UninstallService, WriteOpLog } from '../../wailsjs/go/main/App'
 import { EventsOn, EventsOff, EventsEmit } from '../../wailsjs/runtime/runtime'
 import type { auth, cloudflare } from '../../wailsjs/go/models'
 import PermissionBadge from '../components/PermissionBadge.vue'
@@ -34,6 +34,7 @@ const retrying = ref(false)
 const loading = ref(false)
 const tunnels = ref<cloudflare.Tunnel[]>([])
 const listError = ref('')
+const serviceState = ref('not-installed')
 
 // --- slice 03: process management state ---
 const runStates = ref<Record<string, string>>({})
@@ -212,6 +213,26 @@ function tunnelName(id: string): string {
   return tunnels.value.find((t) => t.id === id)?.name ?? id
 }
 
+async function toggleService() {
+  try {
+    if (serviceState.value === 'not-installed') {
+      await InstallService()
+      serviceState.value = 'stopped'
+      showToast('已安装系统服务', 'success')
+    } else if (serviceState.value === 'running') {
+      await StopService()
+      serviceState.value = 'stopped'
+      showToast('已停止服务', 'success')
+    } else {
+      await StartService()
+      serviceState.value = 'running'
+      showToast('已启动服务', 'success')
+    }
+  } catch (e) {
+    showToast(String(e), 'error')
+  }
+}
+
 function fmtTime(iso: string | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -253,6 +274,7 @@ watch(
 onMounted(async () => {
   await loadTunnels()
   runStates.value = await GetRunStates()
+  try { serviceState.value = await GetServiceStatus() } catch {}
   EventsOn('cloudflared:log', (p: LogPayload) => {
     pushLog({ ...p, tunnel_id: p.tunnel_id ?? '' })
   })
@@ -314,6 +336,15 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           @click="emit('toggle-log')"
         >
           终端
+        </button>
+        <!-- system service indicator -->
+        <button
+          class="ml-2 rounded-md border px-3 py-1 text-xs font-medium"
+          :class="serviceState === 'running' ? 'border-green-300 bg-green-50 text-green-700' : serviceState === 'stopped' ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-slate-300 text-slate-400'"
+          @click="toggleService"
+          :title="serviceState === 'not-installed' ? '点击安装为系统服务（关闭 GUI 后隧道继续运行）' : ''"
+        >
+          {{ serviceState === 'running' ? '🟢 服务运行中' : serviceState === 'stopped' ? '🟡 服务已停止' : '⚪ 安装为系统服务' }}
         </button>
         <button
           class="ml-2 rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"

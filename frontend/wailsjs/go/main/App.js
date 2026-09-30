@@ -89,3 +89,19 @@ export function VerifyAndSaveToken(arg1) {
 export function WriteOpLog(arg1, arg2) {
   return window['go']['main']['App']['WriteOpLog'](arg1, arg2);
 }
+
+export function GetServiceStatus() {
+  return window.go.main.App.GetServiceStatus()
+}
+export function InstallService() {
+  return window.go.main.App.InstallService()
+}
+export function UninstallService() {
+  return window.go.main.App.UninstallService()
+}
+export function StartService() {
+  return window.go.main.App.StartService()
+}
+export function StopService() {
+  return window.go.main.App.StopService()
+}

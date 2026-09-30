@@ -46,3 +46,9 @@ export function StopTunnel(arg1:string):Promise<void>;
 export function VerifyAndSaveToken(arg1:string):Promise<cloudflare.TokenInfo>;
 
 export function WriteOpLog(arg1:string,arg2:string):Promise<void>;
+
+export function GetServiceStatus():Promise<string>;
+export function InstallService():Promise<void>;
+export function UninstallService():Promise<void>;
+export function StartService():Promise<void>;
+export function StopService():Promise<void>;
