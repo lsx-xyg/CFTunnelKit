@@ -50,6 +50,14 @@ export function ListZones() {
   return window['go']['main']['App']['ListZones']();
 }
 
+export function LogDir() {
+  return window['go']['main']['App']['LogDir']();
+}
+
+export function OpenLogDir() {
+  return window['go']['main']['App']['OpenLogDir']();
+}
+
 export function RetryVerify() {
   return window['go']['main']['App']['RetryVerify']();
 }

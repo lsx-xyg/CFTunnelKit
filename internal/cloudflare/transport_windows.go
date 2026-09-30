@@ -3,6 +3,7 @@
 package cloudflare
 
 import (
+	"log/slog"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -34,33 +35,41 @@ func windowsSystemProxy() string {
 		`Software\Microsoft\Windows\CurrentVersion\Internet Settings`,
 		registry.QUERY_VALUE)
 	if err != nil {
+		slog.Debug("system proxy: cannot open registry", "err", err)
 		return ""
 	}
 	defer k.Close()
 	enable, _, err := k.GetIntegerValue("ProxyEnable")
 	if err != nil || enable == 0 {
+		slog.Debug("system proxy: disabled")
 		return ""
 	}
 	server, _, err := k.GetStringValue("ProxyServer")
 	if err != nil || server == "" {
+		slog.Debug("system proxy: ProxyServer empty")
 		return ""
 	}
 	// ProxyServer is either "host:port" or "http=host:port;https=host:port".
 	// Take the https entry if present, else the whole string.
+	var result string
 	if strings.HasPrefix(server, "http=") || strings.Contains(server, ";") {
 		if i := strings.Index(server, "https="); i >= 0 {
 			s := server[i+len("https="):]
 			if j := strings.Index(s, ";"); j >= 0 {
 				s = s[:j]
 			}
-			return "http://" + s
-		}
-		for _, part := range strings.Split(server, ";") {
-			if strings.HasPrefix(part, "http=") {
-				return "http://" + strings.TrimPrefix(part, "http=")
+			result = "http://" + s
+		} else {
+			for _, part := range strings.Split(server, ";") {
+				if strings.HasPrefix(part, "http=") {
+					result = "http://" + strings.TrimPrefix(part, "http=")
+					break
+				}
 			}
 		}
-		return ""
+	} else {
+		result = "http://" + server
 	}
-	return "http://" + server
+	slog.Info("system proxy detected", "addr", result, "raw", server)
+	return result
 }
