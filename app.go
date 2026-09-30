@@ -13,6 +13,7 @@ import (
 	"github.com/lsx-xyg/CFTunnelKit/internal/cloudflare"
 	"github.com/lsx-xyg/CFTunnelKit/internal/config"
 	"github.com/lsx-xyg/CFTunnelKit/internal/process"
+	"github.com/lsx-xyg/CFTunnelKit/internal/service"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -23,6 +24,7 @@ type App struct {
 	ctx  context.Context
 	auth *auth.Service
 	pm   process.ProcessManager
+	svc  *service.Manager
 }
 
 // NewApp creates the App with a config store and the process manager at the
@@ -40,6 +42,7 @@ func NewApp() *App {
 		panic(err)
 	}
 	a := &App{auth: auth.NewService(config.NewStore(path))}
+	a.svc = service.NewManager(filepath.Dir(path))
 	a.pm = process.NewManager(binDir, func(event string, payload interface{}) {
 		if a.ctx != nil {
 			wailsruntime.EventsEmit(a.ctx, event, payload)
@@ -255,4 +258,29 @@ func (a *App) OpenLogDir() {
 // WriteOpLog appends an operation record to operation.log.
 func (a *App) WriteOpLog(action, result string) {
 	applog.OpLog(action, result)
+}
+
+// GetServiceStatus returns the system service status.
+func (a *App) GetServiceStatus() (string, error) {
+	return a.svc.Status()
+}
+
+// InstallService installs the helper as a system service.
+func (a *App) InstallService() error {
+	return a.svc.Install(service.Config{})
+}
+
+// UninstallService removes the system service.
+func (a *App) UninstallService() error {
+	return a.svc.Uninstall()
+}
+
+// StartService starts the system service.
+func (a *App) StartService() error {
+	return a.svc.Start()
+}
+
+// StopService stops the system service.
+func (a *App) StopService() error {
+	return a.svc.Stop()
 }
