@@ -5,3 +5,8 @@ frontend/dist
 .codegraph/
 build/windows/installer/tmp/
 build/windows/installer/project.nsi
+
+# wails generated bindings (regenerated on every dev run)
+frontend/wailsjs/go/
+frontend/wailsjs/runtime/frontend/
+frontend/package.json.md5
