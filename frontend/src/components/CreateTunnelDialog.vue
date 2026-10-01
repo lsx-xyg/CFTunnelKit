@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { api, type cloudflare } from '@/api'
 import { friendlyError } from '@/utils/error'
 
@@ -7,6 +7,13 @@ import { friendlyError } from '@/utils/error'
 // run-token display with copy. A token fetch failure never blocks the
 // creation; the dialog then offers "请在详情页重试".
 const emit = defineEmits<{ (e: 'close'): void; (e: 'created'): void }>()
+
+// Esc closes dialog
+function escHandler(e: KeyboardEvent) {
+  if (e.key === 'Escape' && !busy.value) emit('close')
+}
+onMounted(() => document.addEventListener('keydown', escHandler))
+onUnmounted(() => document.removeEventListener('keydown', escHandler))
 
 const name = ref('')
 const error = ref('')

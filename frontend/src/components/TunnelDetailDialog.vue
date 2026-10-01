@@ -4,6 +4,7 @@ import { Copy, Check, X } from 'lucide-vue-next'
 import { api, type cloudflare } from '@/api'
 import { friendlyError } from '@/utils/error'
 import TunnelStatusBadge from './TunnelStatusBadge.vue'
+import { useEscape } from '@/composables/useEscape'
 
 // Detail dialog (issue #6): metadata + connection count + run token
 // (hidden by default, reveal + copy) + delete flow (type the tunnel name
@@ -23,6 +24,14 @@ const phase = ref<'detail' | 'confirm-delete'>('detail')
 const confirmName = ref('')
 const deleteBusy = ref(false)
 const deleteError = ref('')
+
+// Esc closes dialog
+import { onUnmounted } from 'vue'
+function escHandler(e: KeyboardEvent) {
+  if (e.key === 'Escape') emit('close')
+}
+onMounted(() => document.addEventListener('keydown', escHandler))
+onUnmounted(() => document.removeEventListener('keydown', escHandler))
 
 async function load() {
   loading.value = true

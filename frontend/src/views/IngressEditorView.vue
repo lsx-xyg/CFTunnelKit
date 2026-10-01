@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { api, type cloudflare } from '@/api'
 import { friendlyError } from '@/utils/error'
+import { useEscape } from '@/composables/useEscape'
 
 // Ingress editor (issue #5): visual editing of 域名 → 本地端口 rules.
 // The catch-all 404 rule is maintained invisibly by the backend on save
@@ -61,6 +62,7 @@ interface DNSPrompt {
   remove: string[] // hostnames to delete DNS for
 }
 const dnsPrompt = ref<DNSPrompt | null>(null)
+useEscape(() => (dnsPrompt.value = null), dnsPrompt as unknown as Ref<boolean>)
 const dnsCreateChecked = ref(true)
 const dnsRemoveChecked = ref(true)
 const dnsRunning = ref(false)
@@ -68,6 +70,7 @@ const dnsResults = ref<string[]>([])
 
 // delete-link prompt when a rule is removed in the editor
 const deletePrompt = ref<string[] | null>(null)
+useEscape(() => (deletePrompt.value = null), deletePrompt as unknown as Ref<boolean>)
 const deleteDNSChecked = ref(true)
 
 function hostnamesOf(rulesList: cloudflare.IngressRule[]): string[] {
@@ -255,6 +258,7 @@ function showToast(msg: string) {
 
 // ---- unsaved-changes guard ----
 const confirmLeave = ref(false)
+useEscape(() => (confirmLeave.value = false), confirmLeave)
 
 function requestBack() {
   if (dirty.value) confirmLeave.value = true
