@@ -10,7 +10,7 @@ import { useEscape } from '@/composables/useEscape'
 const props = defineProps<{ tunnelId: string; tunnelName: string }>()
 const emit = defineEmits<{ (e: 'back'): void }>()
 
-interface Rule extends cloudflare.IngressRule { locked?: boolean; _id?: string }
+interface Rule extends cloudflare.IngressRule { locked?: boolean; _id?: string; _zoneId?: string; _subdomain?: string }
 const rules = ref<Rule[]>([])
 const zones = ref<cloudflare.Zone[]>([])
 const loading = ref(true)
@@ -54,6 +54,34 @@ function relName(hostname: string, zoneName: string): string {
   if (h === z) return '@'
   if (h.endsWith('.' + z)) return h.slice(0, h.length - z.length - 1)
   return h
+}
+
+// splitHostname splits a full hostname into { zoneId, subdomain } for the
+// two-column editor. Falls back to "custom" mode when no zone matches.
+function splitHostname(hostname: string): { zoneId: string; subdomain: string } {
+  const h = (hostname ?? '').trim().toLowerCase()
+  if (!h) return { zoneId: '', subdomain: '' }
+  const z = zoneFor(h)
+  if (!z) return { zoneId: '__custom__', subdomain: h }
+  const zn = z.name.toLowerCase()
+  if (h === zn) return { zoneId: z.id, subdomain: '' }
+  const sub = h.slice(0, h.length - zn.length - 1)
+  return { zoneId: z.id, subdomain: sub }
+}
+
+// combineHostname merges { zoneId, subdomain } back into a full hostname.
+function combineHostname(zoneId: string, subdomain: string): string {
+  if (zoneId === '__custom__') return subdomain.trim().toLowerCase()
+  const z = zones.value.find((x) => x.id === zoneId)
+  if (!z) return subdomain.trim().toLowerCase()
+  const sub = subdomain.trim().toLowerCase()
+  if (!sub || sub === '@') return z.name.toLowerCase()
+  return `${sub}.${z.name.toLowerCase()}`
+}
+
+// onZoneOrSubChange writes the combined hostname back into r.hostname.
+function updateHostname(r: Rule) {
+  r.hostname = combineHostname(r._zoneId ?? '', r._subdomain ?? '')
 }
 
 // ---- slice 06: DNS link dialogs ----
@@ -183,7 +211,10 @@ async function load() {
   const minDelay = new Promise((r) => setTimeout(r, 600))
   try {
     const [rs, zs] = await Promise.all([api.ingress.get(props.tunnelId), api.dns.zones()])
-    rules.value = (rs ?? []).map(r => ({ ...r, locked: true, _id: crypto.randomUUID() }))
+    rules.value = (rs ?? []).map(r => {
+      const split = splitHostname(r.hostname ?? '')
+      return { ...r, locked: true, _id: crypto.randomUUID(), _zoneId: split.zoneId, _subdomain: split.subdomain }
+    })
     zones.value = zs
     snapshot = JSON.stringify((rs ?? []).map(norm))
     savedHosts = hostnamesOf(rs)
@@ -196,7 +227,8 @@ async function load() {
 }
 
 function addRule() {
-  rules.value.push({ hostname: '', service: '', _id: crypto.randomUUID() })
+  const firstZone = zones.value[0]?.id ?? '__custom__'
+  rules.value.push({ hostname: '', service: '', _id: crypto.randomUUID(), _zoneId: firstZone, _subdomain: '' })
 }
 
 function removeRule(i: number) {
@@ -225,10 +257,17 @@ async function save() {
   saveError.value = ''
   try {
     const oldHosts = savedHosts
-    const clean = rules.value.map(({ _id, locked, ...rest }) => rest)
+    // Recompute hostname from two-part inputs.
+    rules.value.forEach((r) => {
+      r.hostname = combineHostname(r._zoneId ?? '', r._subdomain ?? '')
+    })
+    const clean = rules.value.map(({ _id, locked, _zoneId, _subdomain, ...rest }) => rest)
     const got = await api.ingress.save(props.tunnelId, clean)
     const newHosts = hostnamesOf(got)
-    rules.value = (got ?? []).map(r => ({ ...r, locked: true, _id: crypto.randomUUID() }))
+    rules.value = (got ?? []).map(r => {
+      const split = splitHostname(r.hostname ?? '')
+      return { ...r, locked: true, _id: crypto.randomUUID(), _zoneId: split.zoneId, _subdomain: split.subdomain }
+    })
     snapshot = JSON.stringify((got ?? []).map(norm))
     savedHosts = newHosts
     showToast('配置已保存')
@@ -337,13 +376,39 @@ onMounted(load)
           >
             <div class="flex items-center gap-2">
               <span class="w-6 text-center text-xs font-semibold text-slate-400">{{ i + 1 }}</span>
-              <input
-                v-model="r.hostname"
-                placeholder="hostname，如 nas.example.com"
+              <!-- two-part hostname: subdomain + zone dropdown -->
+              <div class="flex-1">
+                <input
+                  v-if="r._zoneId !== '__custom__'"
+                  v-model="r._subdomain"
+                  placeholder="子域，如 nas（留空=根域名，*=通配符）"
+                  :disabled="r.locked"
+                  class="w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:border-blue-500 focus:outline-none"
+                  @input="updateHostname(r)"
+                />
+                <input
+                  v-else
+                  v-model="r._subdomain"
+                  placeholder="完整域名，如 nas.example.com"
+                  :disabled="r.locked"
+                  class="w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:border-blue-500 focus:outline-none"
+                  @input="updateHostname(r)"
+                />
+                <p v-if="r._subdomain && r._zoneId !== '__custom__'" class="mt-0.5 text-xs text-slate-400">
+                  → {{ combineHostname(r._zoneId ?? '', r._subdomain ?? '') }}
+                </p>
+              </div>
+              <select
+                v-if="r._zoneId !== '__custom__'"
+                v-model="r._zoneId"
                 :disabled="r.locked"
-                class="flex-1 rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
-                :title="r.hostname ? '已有域名不可修改，请删除后重新添加' : ''"
-              />
+                class="min-w-[8rem] max-w-[12rem] rounded-md border border-slate-200 px-2 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 focus:border-blue-500 focus:outline-none"
+                @change="updateHostname(r)"
+              >
+                <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.name }}</option>
+                <option value="__custom__">自定义</option>
+              </select>
+              <span v-else class="text-sm text-slate-400">自定义域名</span>
               <span class="text-slate-400">→</span>
               <input
                 v-model="r.service"
