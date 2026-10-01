@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	cf "github.com/cloudflare/cloudflare-go/v7"
+	"github.com/cloudflare/cloudflare-go/v7/dns"
 	"github.com/cloudflare/cloudflare-go/v7/option"
 	"github.com/cloudflare/cloudflare-go/v7/zero_trust"
 )
@@ -134,13 +135,49 @@ func (c *sdkClient) ListZones(ctx context.Context, accountID string) ([]Zone, er
 }
 
 func (c *sdkClient) ListDNSRecords(ctx context.Context, zoneID string) ([]DNSRecord, error) {
-	return c.fallback.ListDNSRecords(ctx, zoneID)
+	svc := dns.NewRecordService(
+		option.WithBaseURL("https://api.cloudflare.com/client/v4"),
+		option.WithHTTPClient(&http.Client{Transport: newTransport()}),
+		option.WithAPIToken(c.token),
+	)
+	resp, err := svc.List(ctx, dns.RecordListParams{ZoneID: cf.F(zoneID)})
+	if err != nil {
+		return nil, err
+	}
+	var out []DNSRecord
+	for _, r := range resp.Result {
+		out = append(out, DNSRecord{ID: r.ID, Name: r.Name, Content: r.Content, Type: string(r.Type)})
+	}
+	return out, nil
 }
 
 func (c *sdkClient) CreateCNAMERecord(ctx context.Context, zoneID, name, target string) (DNSRecord, error) {
-	return c.fallback.CreateCNAMERecord(ctx, zoneID, name, target)
+	svc := dns.NewRecordService(
+		option.WithBaseURL("https://api.cloudflare.com/client/v4"),
+		option.WithHTTPClient(&http.Client{Transport: newTransport()}),
+		option.WithAPIToken(c.token),
+	)
+	r, err := svc.New(ctx, dns.RecordNewParams{
+		ZoneID: cf.F(zoneID),
+		Body: dns.CNAMERecordParam{
+			Name:    cf.F(name),
+			Type:    cf.F(dns.CNAMERecordTypeCNAME),
+			Content: cf.F(target),
+			Proxied: cf.F(true),
+		},
+	})
+	if err != nil {
+		return DNSRecord{}, err
+	}
+	return DNSRecord{ID: r.ID, Name: r.Name, Content: r.Content, Type: string(r.Type)}, nil
 }
 
 func (c *sdkClient) DeleteDNSRecord(ctx context.Context, zoneID, recordID string) error {
-	return c.fallback.DeleteDNSRecord(ctx, zoneID, recordID)
+	svc := dns.NewRecordService(
+		option.WithBaseURL("https://api.cloudflare.com/client/v4"),
+		option.WithHTTPClient(&http.Client{Transport: newTransport()}),
+		option.WithAPIToken(c.token),
+	)
+	_, err := svc.Delete(ctx, recordID, dns.RecordDeleteParams{ZoneID: cf.F(zoneID)})
+	return err
 }
