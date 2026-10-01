@@ -9,7 +9,7 @@ import { friendlyError } from '@/utils/error'
 const props = defineProps<{ tunnelId: string; tunnelName: string }>()
 const emit = defineEmits<{ (e: 'back'): void }>()
 
-interface Rule extends cloudflare.IngressRule { locked?: boolean }
+interface Rule extends cloudflare.IngressRule { locked?: boolean; _id?: string }
 const rules = ref<Rule[]>([])
 const zones = ref<cloudflare.Zone[]>([])
 const loading = ref(true)
@@ -180,7 +180,7 @@ async function load() {
   const minDelay = new Promise((r) => setTimeout(r, 600))
   try {
     const [rs, zs] = await Promise.all([api.ingress.get(props.tunnelId), api.dns.zones()])
-    rules.value = (rs ?? []).map(r => ({ ...r, locked: true }))
+    rules.value = (rs ?? []).map(r => ({ ...r, locked: true, _id: crypto.randomUUID() }))
     zones.value = zs
     snapshot = JSON.stringify((rs ?? []).map(norm))
     savedHosts = hostnamesOf(rs)
@@ -193,7 +193,7 @@ async function load() {
 }
 
 function addRule() {
-  rules.value.push({ hostname: '', service: '' })
+  rules.value.push({ hostname: '', service: '', _id: crypto.randomUUID() })
 }
 
 function removeRule(i: number) {
@@ -222,9 +222,10 @@ async function save() {
   saveError.value = ''
   try {
     const oldHosts = savedHosts
-    const got = await api.ingress.save(props.tunnelId, rules.value)
+    const clean = rules.value.map(({ _id, locked, ...rest }) => rest)
+    const got = await api.ingress.save(props.tunnelId, clean)
     const newHosts = hostnamesOf(got)
-    rules.value = (got ?? []).map(r => ({ ...r, locked: true }))
+    rules.value = (got ?? []).map(r => ({ ...r, locked: true, _id: crypto.randomUUID() }))
     snapshot = JSON.stringify((got ?? []).map(norm))
     savedHosts = newHosts
     showToast('配置已保存')
@@ -326,7 +327,7 @@ onMounted(load)
         <div class="space-y-2">
           <div
             v-for="(r, i) in rules"
-            :key="i"
+            :key="r._id ?? i"
             class="rounded-2xl border border-slate-200 bg-white p-3"
             :class="{ 'border-red-300': rowErrors(i).length > 0 }"
           >

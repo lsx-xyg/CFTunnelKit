@@ -258,10 +258,18 @@ watch(
 
 let pollTimer: number | undefined
 
+async function loadRunStates() {
+  try {
+    runStates.value = await api.tunnel.runStates()
+  } catch {
+    // poll failure: silently ignore, next tick will retry
+  }
+}
+
 function restartPoll() {
   if (pollTimer) clearInterval(pollTimer)
   if (pollInterval.value > 0) {
-    pollTimer = window.setInterval(() => loadTunnels(true), pollInterval.value * 1000)
+    pollTimer = window.setInterval(loadRunStates, pollInterval.value * 1000)
   }
 }
 
