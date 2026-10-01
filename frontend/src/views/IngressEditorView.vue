@@ -224,7 +224,7 @@ async function save() {
     const oldHosts = savedHosts
     const got = await SaveIngressConfig(props.tunnelId, rules.value)
     const newHosts = hostnamesOf(got)
-    rules.value = got
+    rules.value = got.map(r => ({ ...r, locked: true }))
     snapshot = JSON.stringify(got.map(norm))
     savedHosts = newHosts
     showToast('配置已保存')
@@ -437,7 +437,7 @@ onMounted(load)
             class="rounded-md border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
             @click="dnsPrompt = null"
           >
-            取消（仅保存规则）
+            取消
           </button>
           <button
             :disabled="dnsRunning"

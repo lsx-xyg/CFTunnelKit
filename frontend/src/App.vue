@@ -98,7 +98,7 @@ onMounted(() => {
   refresh()
   EventsOn('cloudflared:log', pushLog)
   EventsOn('app:op', pushOp)
-  window.addEventListener('keydown', onKey)
+  window.addEventListener('keydown', onKey, true)
 })
 onUnmounted(() => {
   EventsOff('cloudflared:log')
