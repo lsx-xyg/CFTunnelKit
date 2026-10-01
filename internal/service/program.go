@@ -33,6 +33,7 @@ func (p *HelperProgram) run() {
 	p.cmd = exec.Command(binPath, "tunnel", "--config", cfgPath, "run")
 	p.cmd.Stdout = os.Stdout
 	p.cmd.Stderr = os.Stderr
+	hideWindow(p.cmd)
 	if err := p.cmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "cloudflared exited: %v\n", err)
 	}
