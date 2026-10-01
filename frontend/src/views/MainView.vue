@@ -517,7 +517,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
 
     <!-- slice 05: ingress editor overlay -->
     <Transition name="page">
-      <div v-if="ingressTunnelId" class="fixed inset-0 z-[60] bg-slate-100">
+      <div v-if="ingressTunnelId" class="fixed inset-0 z-30 bg-slate-100">
         <IngressEditorView
           :tunnel-id="ingressTunnelId"
           :tunnel-name="ingressTunnelName"
@@ -528,13 +528,15 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
     </Transition>
 
     <!-- toast -->
-    <div
-      v-if="toast"
-      class="fixed right-6 top-6 z-[60] max-w-md rounded-lg px-4 py-2.5 text-sm text-white shadow-lg break-words"
-      :class="toast.type === 'success' ? 'bg-green-600' : toast.type === 'error' ? 'bg-red-600' : 'bg-slate-800'"
-    >
-      {{ toast.msg }}
-    </div>
+    <Teleport to="body">
+      <div
+        v-if="toast"
+        class="fixed right-6 top-6 z-50 max-w-md rounded-lg px-4 py-2.5 text-sm text-white shadow-lg break-words"
+        :class="toast.type === 'success' ? 'bg-green-600' : toast.type === 'error' ? 'bg-red-600' : 'bg-slate-800'"
+      >
+        {{ toast.msg }}
+      </div>
+    </Teleport>
   </div>
 </template>
 

@@ -394,7 +394,8 @@ onMounted(load)
     </main>
 
     <!-- unsaved-changes confirm -->
-    <div v-if="confirmLeave" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40">
+    <Teleport to="body">
+    <div v-if="confirmLeave" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
       <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
         <h2 class="text-base font-bold text-slate-900">有未保存的修改</h2>
         <p class="mt-2 text-sm text-slate-600">离开后修改将丢失，确定返回列表吗？</p>
@@ -414,9 +415,11 @@ onMounted(load)
         </div>
       </div>
     </div>
+    </Teleport>
 
     <!-- slice 06: DNS link prompt after save -->
-    <div v-if="dnsPrompt" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40">
+    <Teleport to="body">
+    <div v-if="dnsPrompt" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
       <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
         <h2 class="text-base font-bold text-slate-900">DNS 联动</h2>
         <p class="mt-1 text-sm text-slate-500">是否同步处理以下域名的 DNS 记录？</p>
@@ -459,9 +462,11 @@ onMounted(load)
         </div>
       </div>
     </div>
+    </Teleport>
 
     <!-- DNS operation results -->
-    <div v-if="dnsResults.length" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40">
+    <Teleport to="body">
+    <div v-if="dnsResults.length" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
       <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
         <h2 class="text-base font-bold text-slate-900">DNS 操作结果</h2>
         <ul class="mt-3 max-h-64 space-y-1 overflow-y-auto">
@@ -477,9 +482,11 @@ onMounted(load)
         </div>
       </div>
     </div>
+    </Teleport>
 
     <!-- slice 06: delete-link prompt -->
-    <div v-if="deletePrompt" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40">
+    <Teleport to="body">
+    <div v-if="deletePrompt" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
       <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
         <h2 class="text-base font-bold text-slate-900">同时删除 DNS 记录？</h2>
         <ul class="mt-3 space-y-1">
@@ -505,13 +512,16 @@ onMounted(load)
         </div>
       </div>
     </div>
+    </Teleport>
 
     <!-- toast -->
+    <Teleport to="body">
     <div
       v-if="toast"
-      class="fixed right-6 top-6 z-[60] max-w-sm rounded-lg bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg"
+      class="fixed right-6 top-6 z-50 max-w-sm rounded-lg bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg"
     >
       {{ toast }}
     </div>
+    </Teleport>
   </div>
 </template>

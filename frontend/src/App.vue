@@ -119,7 +119,7 @@ onUnmounted(() => {
 
     <Transition name="slide-up">
       <div v-if="logVisible"
-        class="fixed bottom-0 left-0 right-0 z-50 flex flex-col border-t border-slate-700 bg-slate-900 shadow-2xl"
+        class="fixed bottom-0 left-0 right-0 z-40 flex flex-col border-t border-slate-700 bg-slate-900 shadow-2xl"
         :class="logFullscreen ? 'top-10' : ''">
         <!-- drag handle -->
         <div class="flex justify-center pt-0.5 cursor-row-resize select-none" @mousedown="onDragStart">
