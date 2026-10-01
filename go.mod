@@ -12,6 +12,7 @@ require (
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/cloudflare/cloudflare-go v0.119.0 // indirect
 	github.com/cloudflare/cloudflare-go/v2 v2.4.0 // indirect
+	github.com/cloudflare/cloudflare-go/v7 v7.11.0 // indirect
 	github.com/energye/systray v1.0.3 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
