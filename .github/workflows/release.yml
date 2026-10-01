@@ -39,6 +39,23 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          body: |
+            ## CFTunnelKit
+
+            Cloudflare Tunnel Windows 桌面管理器。
+
+            ### 下载
+
+            下载 `cftunnelkit.exe`，双击运行。首次打开如被 SmartScreen 拦截，点「更多信息 → 仍要运行」。
+
+            ### 使用
+
+            1. 打开后粘贴 Cloudflare API Token
+            2. 创建/选择 Tunnel，点「启动」
+            3. 进入 Ingress 添加 域名 → 本地端口 映射
+            4. 关闭窗口自动隐藏到托盘
+
+            详见 [README](https://github.com/lsx-xyg/CFTunnelKit#readme)。
           files: |
             build/bin/*.exe
             build/bin/checksums.txt
