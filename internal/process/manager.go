@@ -49,9 +49,7 @@ func NewManager(binDir string, emitter Emitter) *Manager {
 		running:     map[string]*tunnelProc{},
 		stopTimeout: defaultStopTimeout,
 	}
-	m.newCmd = func(ctx context.Context, name string, args ...string) *exec.Cmd {
-		return exec.Command(name, args...)
-	}
+	m.newCmd = newCmdWindows
 	return m
 }
 
