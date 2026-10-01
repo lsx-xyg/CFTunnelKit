@@ -70,7 +70,12 @@ async function doDelete() {
     await DeleteTunnel(props.tunnelId)
     emit('deleted')
   } catch (e) {
-    deleteError.value = String(e)
+    const msg = String(e)
+    if (msg.includes('1022') || msg.includes('active connections')) {
+      deleteError.value = '该 Tunnel 还有活跃连接，请先停止隧道，等几分钟再删除'
+    } else {
+      deleteError.value = msg
+    }
     deleteBusy.value = false
   }
 }
