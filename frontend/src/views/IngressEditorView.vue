@@ -9,7 +9,8 @@ import type { cloudflare } from '../../wailsjs/go/models'
 const props = defineProps<{ tunnelId: string; tunnelName: string }>()
 const emit = defineEmits<{ (e: 'back'): void }>()
 
-const rules = ref<cloudflare.IngressRule[]>([])
+interface Rule extends cloudflare.IngressRule { locked?: boolean }
+const rules = ref<Rule[]>([])
 const zones = ref<cloudflare.Zone[]>([])
 const loading = ref(true)
 const loadError = ref('')
@@ -179,7 +180,7 @@ async function load() {
   const minDelay = new Promise((r) => setTimeout(r, 600))
   try {
     const [rs, zs] = await Promise.all([GetIngressConfig(props.tunnelId), ListZones()])
-    rules.value = rs
+    rules.value = rs.map(r => ({ ...r, locked: true }))
     zones.value = zs
     snapshot = JSON.stringify(rs.map(norm))
     savedHosts = hostnamesOf(rs)
@@ -328,9 +329,9 @@ onMounted(load)
               <input
                 v-model="r.hostname"
                 placeholder="hostname，如 nas.example.com"
-                disabled
-                class="flex-1 rounded-md border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm text-slate-500 cursor-not-allowed"
-                title="域名不可修改，请删除后重新添加"
+                :disabled="r.locked"
+                class="flex-1 rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                :title="r.hostname ? '已有域名不可修改，请删除后重新添加' : ''"
               />
               <span class="text-slate-400">→</span>
               <input
