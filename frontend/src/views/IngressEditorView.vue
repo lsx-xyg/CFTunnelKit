@@ -231,11 +231,11 @@ async function load() {
   const minDelay = new Promise((r) => setTimeout(r, 600))
   try {
     const [rs, zs] = await Promise.all([api.ingress.get(props.tunnelId), api.dns.zones()])
+    zones.value = zs
     rules.value = (rs ?? []).map(r => {
       const split = splitHostname(r.hostname ?? '')
       return { ...r, locked: true, _id: crypto.randomUUID(), _zoneId: split.zoneId, _subdomain: split.subdomain }
     })
-    zones.value = zs
     snapshot = JSON.stringify((rs ?? []).map(norm))
     savedHosts = hostnamesOf(rs)
   } catch (e) {
@@ -428,11 +428,11 @@ onMounted(load)
             <div class="flex items-center gap-2">
               <span class="w-6 text-center text-xs font-semibold text-slate-400">{{ i + 1 }}</span>
               <!-- two-part hostname: subdomain + zone dropdown -->
-              <div class="flex-1">
+              <div class="w-40 flex-none">
                 <input
                   v-if="r._zoneId !== '__custom__'"
                   v-model="r._subdomain"
-                  :placeholder="r._zoneId ? '子域（留空=根域名，*=通配符）' : '子域，如 nas'"
+                  :placeholder="r._zoneId ? '子域（留空=根域名）' : '子域，如 nas'"
                   :disabled="r.locked"
                   class="w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:border-blue-500 focus:outline-none"
                   @input="updateHostname(r)"
@@ -440,7 +440,7 @@ onMounted(load)
                 <input
                   v-else
                   v-model="r._subdomain"
-                  placeholder="完整域名，如 nas.example.com"
+                  placeholder="完整域名"
                   :disabled="r.locked"
                   class="w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:border-blue-500 focus:outline-none"
                   @input="updateHostname(r)"
