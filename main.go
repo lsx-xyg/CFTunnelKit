@@ -121,7 +121,7 @@ func onReady(app *App) func() {
 			systray.Quit()
 		})
 
-		// left-click tray icon restores window
+		// left-click restores window
 		systray.SetOnClick(func(menu systray.IMenu) {
 			wailsruntime.WindowShow(app.ctx)
 			wailsruntime.WindowUnminimise(app.ctx)
