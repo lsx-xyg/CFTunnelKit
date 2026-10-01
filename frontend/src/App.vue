@@ -33,7 +33,7 @@ function toggleLog() {
 }
 
 function onKey(e: KeyboardEvent) {
-  if (e.key === '`' && (e.ctrlKey || e.metaKey)) {
+  if ((e.code === 'Backquote' || e.key === '`') && (e.ctrlKey || e.metaKey)) {
     e.preventDefault()
     toggleLog()
   }
