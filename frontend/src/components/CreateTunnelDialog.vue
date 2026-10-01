@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
-import { CreateTunnel, GetTunnelToken } from '../../wailsjs/go/main/App'
-import type { cloudflare } from '../../wailsjs/go/models'
+import { api, type cloudflare } from '@/api'
 
 // Create dialog (issue #6): name validation → CreateTunnel → immediate
 // run-token display with copy. A token fetch failure never blocks the
@@ -34,10 +33,10 @@ async function submit() {
   if (error.value) return
   busy.value = true
   try {
-    const tun = await CreateTunnel(name.value.trim())
+    const tun = await api.tunnel.create(name.value.trim())
     created.value = tun
     try {
-      token.value = await GetTunnelToken(tun.id)
+      token.value = await api.tunnel.token(tun.id)
     } catch (e) {
       tokenError.value = 'Token 获取失败，请在详情页重试'
     }

@@ -1,11 +1,13 @@
 import {
   GetAuthState, GetRunStates, ListTunnels, OpenLogDir,
   RetryVerify, StartTunnel, StopTunnel, WriteOpLog,
-  CreateTunnel, DeleteTunnel, GetTunnelDetail,
+  CreateTunnel, DeleteTunnel, GetTunnelDetail, GetTunnelToken,
   GetIngressConfig, SaveIngressConfig,
   EnsureCNAME, DeleteDNSByName, ListZones, ListDNSRecords,
   VerifyAndSaveToken,
 } from '../../wailsjs/go/main/App'
+
+export type { cloudflare } from '../../wailsjs/go/models'
 
 export const api = {
   auth: {
@@ -21,6 +23,7 @@ export const api = {
     create: CreateTunnel,
     remove: DeleteTunnel,
     detail: GetTunnelDetail,
+    token: GetTunnelToken,
   },
   ingress: {
     get: GetIngressConfig,
