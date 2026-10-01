@@ -316,7 +316,7 @@ onMounted(load)
         <div v-if="rules.length === 0 && !wholeListErrors.length" class="rounded-2xl border border-dashed border-slate-300 p-8 text-center">
           <p class="text-sm text-slate-500">尚未配置规则（Tunnel 未配置或仅有兜底规则）</p>
           <button
-            class="mt-4 rounded-md bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+            class="mt-4 rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
             @click="addRule"
           >
             + 添加规则
@@ -327,7 +327,7 @@ onMounted(load)
           <div
             v-for="(r, i) in rules"
             :key="i"
-            class="rounded-xl border border-slate-200 bg-white p-3"
+            class="rounded-2xl border border-slate-200 bg-white p-3"
             :class="{ 'border-red-300': rowErrors(i).length > 0 }"
           >
             <div class="flex items-center gap-2">
@@ -378,7 +378,7 @@ onMounted(load)
         <p v-if="saveError" class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{{ saveError }}</p>
 
         <button
-          class="mt-4 rounded-md border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          class="mt-4 rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
           @click="addRule"
         >
           + 添加规则

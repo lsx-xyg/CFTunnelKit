@@ -325,14 +325,14 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           </div>
         </div>
         <!-- hover dropdown -->
-        <div class="relative group py-2">
-          <button class="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">☰ 更多</button>
-          <div class="absolute right-0 top-full z-[60] w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-xl opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
-            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="emit('toggle-log')">终端日志</button>
-            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="api.system.openLogDir()">打开日志目录</button>
+        <div class="relative group">
+          <button class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">☰ 更多</button>
+          <div class="absolute right-0 top-full z-[60] w-48 rounded-xl border border-slate-200 bg-white py-1 shadow-lg opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors" @click="emit('toggle-log')">终端日志</button>
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors" @click="api.system.openLogDir()">打开日志目录</button>
           </div>
         </div>
-        <button class="rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-shadow" @click="showCreate = true">
+        <button class="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors" @click="showCreate = true">
           + 创建 Tunnel
         </button>
       </div>
@@ -466,7 +466,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
-            <tr v-for="t in tunnels" :key="t.id" class="hover:bg-blue-50/50 transition-colors">
+            <tr v-for="t in tunnels" :key="t.id" class="hover:bg-slate-50 transition-colors">
               <td class="px-4 py-2.5 font-medium text-slate-900">{{ t.name }}</td>
               <td class="px-4 py-2.5 whitespace-nowrap">
                 <span

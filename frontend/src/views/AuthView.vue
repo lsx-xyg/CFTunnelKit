@@ -56,7 +56,7 @@ const permissionRows: { key: keyof cloudflare.Permissions; label: string }[] = [
 
 <template>
   <div class="flex h-full items-center justify-center bg-slate-50">
-    <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+    <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-md ring-1 ring-slate-200">
       <h1 class="text-2xl font-bold text-slate-900">CFTunnelKit</h1>
       <p class="mt-1 text-sm text-slate-500">
         Cloudflare Tunnel 桌面管理器 — 请粘贴 API Token 开始使用
