@@ -7,6 +7,7 @@ import (
 	cf "github.com/cloudflare/cloudflare-go/v7"
 	"github.com/cloudflare/cloudflare-go/v7/dns"
 	"github.com/cloudflare/cloudflare-go/v7/option"
+	"github.com/cloudflare/cloudflare-go/v7/zones"
 	"github.com/cloudflare/cloudflare-go/v7/zero_trust"
 )
 
@@ -135,7 +136,22 @@ func (c *sdkClient) GetTunnelToken(ctx context.Context, accountID, tunnelID stri
 }
 
 func (c *sdkClient) ListZones(ctx context.Context, accountID string) ([]Zone, error) {
-	return c.fallback.ListZones(ctx, accountID)
+	svc := zones.NewZoneService(
+		option.WithBaseURL("https://api.cloudflare.com/client/v4"),
+		option.WithHTTPClient(&http.Client{Transport: newTransport()}),
+		option.WithAPIToken(c.token),
+	)
+	resp, err := svc.List(ctx, zones.ZoneListParams{
+		Account: cf.F(zones.ZoneListParamsAccount{ID: cf.F(accountID)}),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out []Zone
+	for _, z := range resp.Result {
+		out = append(out, Zone{ID: z.ID, Name: z.Name})
+	}
+	return out, nil
 }
 
 func (c *sdkClient) ListDNSRecords(ctx context.Context, zoneID string) ([]DNSRecord, error) {
