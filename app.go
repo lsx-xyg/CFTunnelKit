@@ -249,6 +249,11 @@ func (a *App) WriteOpLog(action, result string) {
 	a.sys.WriteOpLog(action, result)
 }
 
+// GetVersion returns the build version.
+func (a *App) GetVersion() string {
+	return a.sys.GetVersion()
+}
+
 func (a *App) addRunning(id string) {
 	cfg := a.auth.Config()
 	for _, x := range cfg.LastRunning {

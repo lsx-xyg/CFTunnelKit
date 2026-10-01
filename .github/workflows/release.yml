@@ -29,7 +29,7 @@ jobs:
         run: npm ci
 
       - name: Build exe
-        run: wails build -clean
+        run: wails build -clean -ldflags "-X github.com/lsx-xyg/CFTunnelKit/internal/version.Version=${{ github.ref_name }}"
 
       - name: Checksums
         working-directory: build/bin

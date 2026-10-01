@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/lsx-xyg/CFTunnelKit/internal/applog"
+	"github.com/lsx-xyg/CFTunnelKit/internal/version"
 )
 
 // SystemHandler owns log-directory and operation-log bindings. It is
@@ -40,4 +41,9 @@ func (h *SystemHandler) OpenLogDir() {
 // WriteOpLog appends an operation record to operation.log.
 func (h *SystemHandler) WriteOpLog(action, result string) {
 	applog.OpLog(action, result)
+}
+
+// GetVersion returns the build version (injected via ldflags).
+func (h *SystemHandler) GetVersion() string {
+	return version.Version
 }

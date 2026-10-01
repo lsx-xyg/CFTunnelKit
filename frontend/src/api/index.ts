@@ -4,7 +4,7 @@ import {
   CreateTunnel, DeleteTunnel, GetTunnelDetail, GetTunnelToken,
   GetIngressConfig, SaveIngressConfig,
   EnsureCNAME, DeleteDNSByName, ListZones, ListDNSRecords,
-  VerifyAndSaveToken,
+  VerifyAndSaveToken, GetVersion,
 } from '../../wailsjs/go/main/App'
 
 export type { cloudflare } from '../../wailsjs/go/models'
@@ -39,5 +39,6 @@ export const api = {
   system: {
     openLogDir: OpenLogDir,
     opLog: WriteOpLog,
+    version: GetVersion,
   },
 }
