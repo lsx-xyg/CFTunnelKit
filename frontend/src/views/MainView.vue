@@ -35,6 +35,7 @@ const loading = ref(false)
 const tunnels = ref<cloudflare.Tunnel[]>([])
 const listError = ref('')
 const serviceState = ref('not-installed')
+const moreOpen = ref(false)
 
 // --- slice 03: process management state ---
 const runStates = ref<Record<string, string>>({})
@@ -233,6 +234,17 @@ async function toggleService() {
   }
 }
 
+async function uninstallService() {
+  if (!confirm('确定卸载系统服务？')) return
+  try {
+    await UninstallService()
+    serviceState.value = 'not-installed'
+    showToast('已卸载服务', 'success')
+  } catch (e) {
+    showToast(String(e), 'error')
+  }
+}
+
 function fmtTime(iso: string | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -325,27 +337,31 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           <span class="text-slate-500">{{ row.label }}</span>
           <PermissionBadge :status="state.token_info?.permissions?.[row.key] ?? 'unverified'" />
         </span>
-        <button
-          class="ml-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-          @click="OpenLogDir"
+        <!-- service status -->
+        <span
+          class="ml-2 rounded-full px-2 py-0.5 text-xs"
+          :class="serviceState === 'running' ? 'bg-green-100 text-green-700' : serviceState === 'stopped' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'"
         >
-          日志目录
-        </button>
-        <button
-          class="ml-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-          @click="emit('toggle-log')"
-        >
-          终端
-        </button>
-        <!-- system service indicator -->
-        <button
-          class="ml-2 rounded-md border px-3 py-1 text-xs font-medium"
-          :class="serviceState === 'running' ? 'border-green-300 bg-green-50 text-green-700' : serviceState === 'stopped' ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-slate-300 text-slate-400'"
-          @click="toggleService"
-          :title="serviceState === 'not-installed' ? '点击安装为系统服务（关闭 GUI 后隧道继续运行）' : ''"
-        >
-          {{ serviceState === 'running' ? '🟢 服务运行中' : serviceState === 'stopped' ? '🟡 服务已停止' : '⚪ 安装为系统服务' }}
-        </button>
+          {{ serviceState === 'running' ? '🟢 服务运行中' : serviceState === 'stopped' ? '🟡 服务已停止' : '⚪ 未安装服务' }}
+        </span>
+        <!-- more menu -->
+        <div class="relative">
+          <button
+            class="ml-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            @click="moreOpen = !moreOpen"
+          >
+            ☰ 更多
+          </button>
+          <div v-if="moreOpen" class="absolute right-0 top-8 z-[60] w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg" @click.self="moreOpen = false">
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="moreOpen=false; emit('toggle-log')">终端日志</button>
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="moreOpen=false; OpenLogDir()">打开日志目录</button>
+            <div class="my-1 border-t border-slate-100"></div>
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="moreOpen=false; toggleService()">
+              {{ serviceState === 'not-installed' ? '安装为系统服务' : serviceState === 'running' ? '停止系统服务' : '启动系统服务' }}
+            </button>
+            <button v-if="serviceState !== 'not-installed'" class="block w-full px-4 py-1.5 text-left text-xs text-red-600 hover:bg-red-50" @click="moreOpen=false; uninstallService()">卸载系统服务</button>
+          </div>
+        </div>
         <button
           class="ml-2 rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
           @click="showCreate = true"
