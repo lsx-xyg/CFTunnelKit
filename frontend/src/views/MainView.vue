@@ -451,7 +451,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </div>
 
       <!-- empty state: create -->
-      <div v-else-if="tunnels.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+      <div v-else-if="!loading && tunnels.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
         <p class="text-sm font-medium text-slate-600">此账户还没有 Tunnel</p>
         <button
           class="mt-4 rounded-md bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
@@ -462,7 +462,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </div>
 
       <!-- stats cards -->
-      <div v-if="tunnels.length > 0" class="grid grid-cols-4 gap-3 mb-4">
+      <div v-if="!loading && tunnels.length > 0" class="grid grid-cols-4 gap-3 mb-4">
         <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
           <p class="text-xs text-slate-500">总隧道</p>
           <p class="text-xl font-bold text-slate-800">{{ tunnels.length }}</p>
@@ -482,7 +482,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </div>
 
       <!-- tunnel list -->
-      <div v-if="tunnels.length > 0" class="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+      <div v-if="!loading && tunnels.length > 0" class="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
         <div class="flex items-center justify-end border-b border-slate-100 px-4 py-1.5">
           <div class="flex items-center gap-1.5">
           <span class="text-xs text-slate-500">轮询</span>

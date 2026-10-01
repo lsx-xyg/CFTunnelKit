@@ -334,7 +334,7 @@ onMounted(load)
         </span>
         <button
           :disabled="!saveable || saving"
-          class="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+          class="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
           @click="save"
         >
           {{ saving ? '保存中…' : dirty ? '保存' : '已保存' }}
@@ -371,8 +371,8 @@ onMounted(load)
           <div
             v-for="(r, i) in rules"
             :key="r._id ?? i"
-            class="rounded-2xl border border-slate-200 bg-white p-3"
-            :class="{ 'border-red-300': rowErrors(i).length > 0 }"
+            class="rounded-2xl border border-slate-200 bg-white p-3 transition-colors"
+            :class="{ 'border-red-300 bg-red-50/30': rowErrors(i).length > 0 }"
           >
             <div class="flex items-center gap-2">
               <span class="w-6 text-center text-xs font-semibold text-slate-400">{{ i + 1 }}</span>
@@ -394,7 +394,7 @@ onMounted(load)
                   class="w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:border-blue-500 focus:outline-none"
                   @input="updateHostname(r)"
                 />
-                <p v-if="r._subdomain && r._zoneId !== '__custom__'" class="mt-0.5 text-xs text-slate-400">
+                <p v-if="r._subdomain && r._zoneId !== '__custom__'" class="mt-0.5 text-xs text-slate-400 transition-colors">
                   → {{ combineHostname(r._zoneId ?? '', r._subdomain ?? '') }}
                 </p>
               </div>
@@ -417,14 +417,14 @@ onMounted(load)
               />
               <div class="flex flex-col gap-0.5">
                 <button
-                  class="rounded border border-slate-300 px-1.5 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-30"
+                  class="rounded border border-slate-300 px-1.5 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-30 transition-colors"
                   :disabled="i === 0"
                   @click="move(i, -1)"
                 >
                   ↑
                 </button>
                 <button
-                  class="rounded border border-slate-300 px-1.5 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-30"
+                  class="rounded border border-slate-300 px-1.5 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-30 transition-colors"
                   :disabled="i === rules.length - 1"
                   @click="move(i, 1)"
                 >
@@ -432,7 +432,7 @@ onMounted(load)
                 </button>
               </div>
               <button
-                class="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                class="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
                 @click="removeRule(i)"
               >
                 删除
