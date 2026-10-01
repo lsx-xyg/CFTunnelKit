@@ -4,7 +4,7 @@ import {service} from '../models';
 import {cloudflare} from '../models';
 import {auth} from '../models';
 
-export function CheckLatestRelease():Promise<service.UpdateInfo>;
+export function CheckLatestRelease(arg1:boolean):Promise<service.UpdateInfo>;
 
 export function CreateTunnel(arg1:string):Promise<cloudflare.Tunnel>;
 

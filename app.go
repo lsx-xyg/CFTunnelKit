@@ -93,6 +93,7 @@ func (a *App) startup(ctx context.Context) {
 	a.dh = service.NewDNSHandler(a.auth, ctx)
 	a.ph = service.NewProcessHandler(a.auth, a.pm, ctx)
 	a.sys.SetContext(ctx)
+	a.sys.SetConfigStore(a.auth.Store())
 	a.auth.LoadPersisted()
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -256,8 +257,8 @@ func (a *App) GetVersion() string {
 }
 
 // CheckLatestRelease checks GitHub for a newer release.
-func (a *App) CheckLatestRelease() (*service.UpdateInfo, error) {
-	return a.sys.CheckLatestRelease()
+func (a *App) CheckLatestRelease(force bool) (*service.UpdateInfo, error) {
+	return a.sys.CheckLatestRelease(force)
 }
 
 // OpenReleasePage opens the release URL in browser.

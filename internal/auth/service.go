@@ -64,6 +64,11 @@ func (s *Service) Save(cfg config.Config) {
 	_ = s.store.Save(cfg)
 }
 
+// Store returns the underlying config.Store (for handlers that need direct read/write).
+func (s *Service) Store() *config.Store {
+	return s.store
+}
+
 // VerifyAndSaveToken validates a user-supplied token, persists it to the
 // config store and flips the state to authenticated. On failure nothing is
 // saved and the state is left untouched.

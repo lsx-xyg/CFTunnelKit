@@ -49,6 +49,7 @@ const download = ref<{ active: boolean; phase: string; downloaded: number; total
 })
 const toast = ref<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null)
 const updateInfo = ref<{ current: string; latest: string; releaseUrl: string } | null>(null)
+const hasUpdateBadge = ref<{ latest: string } | null>(null)
 let toastTimer: number | undefined
 
 // --- slice 04: create / detail dialogs ---
@@ -127,16 +128,24 @@ function pushLog(p: LogPayload) {
   }
 }
 
-async function checkUpdate() {
+async function checkUpdate(force = true) {
   try {
-    const info = await api.system.checkUpdate()
+    const info = await api.system.checkUpdate(force)
     if (info.hasUpdate) {
-      updateInfo.value = { current: info.current, latest: info.latest, releaseUrl: info.releaseUrl }
-    } else {
+      hasUpdateBadge.value = { latest: info.latest }
+      if (force) {
+        updateInfo.value = { current: info.current, latest: info.latest, releaseUrl: info.releaseUrl }
+      }
+    } else if (force) {
       showToast(`已是最新版 ${info.latest || info.current}`, 'success')
     }
   } catch (e) {
-    showToast('检查更新失败，请稍后重试', 'error')
+    const msg = String(e)
+    if (msg.includes('rate limited') || msg.includes('403')) {
+      if (force) showToast('检查太频繁，请稍后再试', 'error')
+    } else if (force) {
+      showToast('检查更新失败，请稍后重试', 'error')
+    }
   }
 }
 
@@ -290,6 +299,8 @@ function restartPoll() {
 onMounted(async () => {
   await loadTunnels()
   runStates.value = await api.tunnel.runStates()
+  // Auto-check for updates after 5s (silent, no popup)
+  setTimeout(() => checkUpdate(false), 5000)
   EventsOn('cloudflared:log', (p: LogPayload) => {
     pushLog({ ...p, tunnel_id: p.tunnel_id ?? '' })
   })
@@ -348,11 +359,17 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
         </div>
         <!-- hover dropdown -->
         <div class="relative group">
-          <button class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">☰ 更多</button>
-          <div class="absolute right-0 top-full z-[60] w-48 rounded-xl border border-slate-200 bg-white py-1 shadow-lg opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
+          <button class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors relative">
+            ☰ 更多
+            <span v-if="hasUpdateBadge" class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500"></span>
+          </button>
+          <div class="absolute right-0 top-full z-[60] w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-lg opacity-0 translate-y-1 transition-opacity duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
             <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors" @click="emit('toggle-log')">终端日志</button>
             <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors" @click="api.system.openLogDir()">打开日志目录</button>
-            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors" @click="checkUpdate">检查更新</button>
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors" @click="checkUpdate(true)">
+              检查更新
+              <span v-if="hasUpdateBadge" class="ml-1 text-red-600">有新版本 {{ hasUpdateBadge.latest }}</span>
+            </button>
           </div>
         </div>
         <button class="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors" @click="showCreate = true">

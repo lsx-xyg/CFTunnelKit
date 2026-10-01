@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"github.com/lsx-xyg/CFTunnelKit/internal/config"
 	"github.com/lsx-xyg/CFTunnelKit/internal/version"
 )
 
@@ -21,15 +23,31 @@ type UpdateInfo struct {
 	ReleaseURL string `json:"releaseUrl"`
 }
 
+// ErrRateLimited is returned when GitHub API returns 403.
+var ErrRateLimited = errors.New("rate limited")
+
 const githubAPI = "https://api.github.com/repos/lsx-xyg/CFTunnelKit/releases/latest"
+const updateCheckInterval = 6 * time.Hour
 
 // CheckLatestRelease fetches the latest GitHub release and compares it
-// with the running version.
-func (h *SystemHandler) CheckLatestRelease() (*UpdateInfo, error) {
+// with the running version. When force is false, skips if last successful
+// check was less than 6 hours ago.
+func (h *SystemHandler) CheckLatestRelease(force bool) (*UpdateInfo, error) {
 	current := version.Version
 	// Local dev build: skip comparison.
 	if current == "" || current == "dev" {
 		return &UpdateInfo{Current: current, Latest: current, HasUpdate: false, ReleaseURL: ""}, nil
+	}
+
+	// Rate-limit interval for background checks.
+	if !force && h.cfg != nil {
+		cfg, err := h.cfg.Load()
+		if err == nil && cfg.LastUpdateCheck > 0 {
+			if time.Now().Unix()-cfg.LastUpdateCheck < int64(updateCheckInterval.Seconds()) {
+				// Too soon, silently skip.
+				return &UpdateInfo{Current: current, Latest: current, HasUpdate: false, ReleaseURL: ""}, nil
+			}
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -48,6 +66,9 @@ func (h *SystemHandler) CheckLatestRelease() (*UpdateInfo, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == 403 {
+		return nil, ErrRateLimited
+	}
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("github api returned %d", resp.StatusCode)
 	}
@@ -62,6 +83,14 @@ func (h *SystemHandler) CheckLatestRelease() (*UpdateInfo, error) {
 
 	latest := strings.TrimSpace(release.TagName)
 	hasUpdate := compareVersions(current, latest) < 0
+
+	// Record successful check.
+	if h.cfg != nil {
+		if cfg, err := h.cfg.Load(); err == nil {
+			cfg.LastUpdateCheck = time.Now().Unix()
+			_ = h.cfg.Save(cfg)
+		}
+	}
 
 	return &UpdateInfo{
 		Current:    current,
@@ -80,7 +109,6 @@ func (h *SystemHandler) OpenReleasePage(url string) {
 }
 
 // compareVersions returns -1 if a < b, 0 if equal, 1 if a > b.
-// Handles optional leading "v". Non-numeric parts are treated as 0.
 func compareVersions(a, b string) int {
 	pa := parseVer(a)
 	pb := parseVer(b)
@@ -105,4 +133,9 @@ func parseVer(v string) [3]int {
 		out[i] = n
 	}
 	return out
+}
+
+// SetConfigStore injects the config store for rate-limit tracking.
+func (h *SystemHandler) SetConfigStore(store *config.Store) {
+	h.cfg = store
 }

@@ -40,6 +40,8 @@ type Config struct {
 	// VerifiedAt is the RFC3339 timestamp of the last successful verification.
 	VerifiedAt string `json:"verified_at"`
 	LastRunning []string `json:"last_running,omitempty"`
+	// LastUpdateCheck is the unix timestamp of the last successful update check.
+	LastUpdateCheck int64 `json:"last_update_check,omitempty"`
 }
 
 // Store reads and writes Config to a single file.

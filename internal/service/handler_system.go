@@ -7,12 +7,14 @@ import (
 	"runtime"
 
 	"github.com/lsx-xyg/CFTunnelKit/internal/applog"
+	"github.com/lsx-xyg/CFTunnelKit/internal/config"
 	"github.com/lsx-xyg/CFTunnelKit/internal/version"
 )
 
 // SystemHandler owns log-directory and operation-log bindings.
 type SystemHandler struct {
 	ctx context.Context
+	cfg *config.Store
 }
 
 func NewSystemHandler() *SystemHandler {
