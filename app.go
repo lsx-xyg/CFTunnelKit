@@ -28,6 +28,7 @@ type App struct {
 	th   *service.TunnelHandler
 	ih   *service.IngressHandler
 	dh   *service.DNSHandler
+	ph   *service.ProcessHandler
 }
 
 // NewApp creates the App with a config store and the process manager at the
@@ -90,6 +91,7 @@ func (a *App) startup(ctx context.Context) {
 	a.th = service.NewTunnelHandler(a.auth, ctx)
 	a.ih = service.NewIngressHandler(a.auth, ctx)
 	a.dh = service.NewDNSHandler(a.auth, ctx)
+	a.ph = service.NewProcessHandler(a.auth, a.pm, ctx)
 	a.auth.LoadPersisted()
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -137,16 +139,9 @@ func (a *App) ListTunnels() ([]cloudflare.Tunnel, error) {
 
 // ---- slice 03: cloudflared process bindings ----
 
-// StartTunnel fetches the tunnel run token and launches cloudflared for it.
-// The binary is auto-downloaded on first use (progress via
-// cloudflared:download events). A duplicate start returns
-// "该 Tunnel 已在运行".
+// StartTunnel fetches the tunnel run token and launches cloudflared.
 func (a *App) StartTunnel(tunnelID string) error {
-	tok, err := a.auth.GetTunnelToken(a.ctxOrBackground(), tunnelID)
-	if err != nil {
-		return err
-	}
-	if err := a.pm.Start(a.ctxOrBackground(), tunnelID, tok); err != nil {
+	if err := a.ph.StartTunnel(tunnelID); err != nil {
 		return err
 	}
 	a.addRunning(tunnelID)
@@ -155,22 +150,21 @@ func (a *App) StartTunnel(tunnelID string) error {
 
 // StopTunnel gracefully stops one tunnel process.
 func (a *App) StopTunnel(tunnelID string) error {
-	err := a.pm.Stop(tunnelID)
+	err := a.ph.StopTunnel(tunnelID)
 	if err == nil {
 		a.removeRunning(tunnelID)
 	}
 	return err
 }
 
-// StopAllTunnels stops every running tunnel (frontend "全部停止" / shutdown).
+// StopAllTunnels stops every running tunnel.
 func (a *App) StopAllTunnels() error {
-	return a.pm.StopAll()
+	return a.ph.StopAllTunnels()
 }
 
-// GetRunStates returns a snapshot of currently running tunnel IDs
-// (tunnelID → "running").
+// GetRunStates returns running tunnel IDs.
 func (a *App) GetRunStates() map[string]string {
-	return a.pm.RunStates()
+	return a.ph.GetRunStates()
 }
 
 // ---- slice 04: tunnel create / delete / detail bindings ----
