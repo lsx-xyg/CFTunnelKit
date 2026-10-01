@@ -30,10 +30,13 @@ func NewManager(cfgDir string) *Manager {
 }
 
 func (m *Manager) svcConfig() *service.Config {
+	exe, _ := os.Executable()
 	return &service.Config{
 		Name:        "cftunnelkit-helper",
 		DisplayName: "CFTunnelKit Tunnel Helper",
 		Description: "Manages cloudflared tunnel lifecycle for CFTunnelKit",
+		Executable:  exe,
+		Arguments:   []string{"--run-as-service"},
 	}
 }
 

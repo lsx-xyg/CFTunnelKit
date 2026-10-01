@@ -4,7 +4,9 @@ import (
 	"embed"
 	"log/slog"
 	"os"
+	"path/filepath"
 
+	kservice "github.com/kardianos/service"
 	"github.com/energye/systray"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/wailsapp/wails/v2"
@@ -23,6 +25,21 @@ var assets embed.FS
 var trayIcon []byte
 
 func main() {
+	// run as Windows service (called by service manager)
+	if len(os.Args) > 1 && os.Args[1] == "--run-as-service" {
+		home, _ := os.UserHomeDir()
+		cfgDir := filepath.Join(home, ".cftunnelkit")
+		ksvcCfg := &kservice.Config{
+			Name:        "cftunnelkit-helper",
+			DisplayName: "CFTunnelKit Tunnel Helper",
+		}
+		prg := &service.HelperProgram{CfgDir: cfgDir}
+		s, err := kservice.New(prg, ksvcCfg)
+		if err != nil { panic(err) }
+		if err := s.Run(); err != nil { panic(err) }
+		return
+	}
+
 	// elevated install/uninstall mode (launched via UAC)
 	if len(os.Args) > 1 {
 		home, _ := os.UserHomeDir()
