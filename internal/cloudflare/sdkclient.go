@@ -89,6 +89,9 @@ func (c *sdkClient) GetIngressConfig(ctx context.Context, accountID, tunnelID st
 	}
 	var out []IngressRule
 	for _, ing := range resp.Config.Ingress {
+		if ing.Service == "http_status:404" || ing.Hostname == "" {
+			continue
+		}
 		out = append(out, IngressRule{Hostname: ing.Hostname, Service: ing.Service})
 	}
 	return out, nil
