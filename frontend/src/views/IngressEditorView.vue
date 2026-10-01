@@ -553,12 +553,6 @@ onMounted(load)
             取消
           </button>
           <button
-            class="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-            @click="skipDNSPrompt"
-          >
-            只保存规则
-          </button>
-          <button
             class="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
             @click="confirmDNSPrompt"
           >
