@@ -114,10 +114,9 @@ onMounted(load)
           <dl class="mt-4 space-y-2 text-sm">
             <div class="flex justify-between">
               <dt class="text-slate-500">状态</dt>
-              <dd><span class="inline-flex min-w-[4rem] items-center justify-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1"
-                :class="runState === 'running' ? 'bg-green-100 text-green-700 ring-green-200' : runState === 'error' ? 'bg-red-100 text-red-700 ring-red-200' : 'bg-slate-200 text-slate-600 ring-slate-300'">
-                {{ runState === 'running' ? '正常' : runState === 'error' ? '异常' : '断开' }}
-              </span></dd>
+              <dd>
+                <TunnelStatusBadge :status="runState === 'running' ? 'healthy' : runState === 'error' ? 'down' : 'inactive'" />
+              </dd>
             </div>
             <div class="flex justify-between">
               <dt class="text-slate-500">创建时间</dt>
