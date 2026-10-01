@@ -250,6 +250,8 @@ watch(
   },
 )
 
+let pollTimer: number | undefined
+
 onMounted(async () => {
   await loadTunnels()
   runStates.value = await GetRunStates()
@@ -269,12 +271,15 @@ onMounted(async () => {
       window.setTimeout(() => (download.value.active = false), 1000)
     }
   })
+  // background poll every 15s
+  pollTimer = window.setInterval(loadTunnels, 15000)
 })
 
 onUnmounted(() => {
   EventsOff('cloudflared:log')
   EventsOff('cloudflared:status')
   EventsOff('cloudflared:download')
+  if (pollTimer) clearInterval(pollTimer)
   if (toastTimer) window.clearTimeout(toastTimer)
 })
 
