@@ -330,10 +330,10 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </div>
       <div class="flex items-center gap-3">
         <!-- status dot with hover tooltip -->
-        <div class="relative group">
+        <div class="relative group py-2">
           <div class="h-2.5 w-2.5 rounded-full cursor-default"
             :class="serviceState === 'running' ? 'bg-green-500' : serviceState === 'stopped' ? 'bg-amber-500' : 'bg-slate-300'" />
-          <div class="absolute right-0 top-4 z-[60] hidden w-60 rounded-lg border border-slate-200 bg-white p-3 shadow-xl group-hover:block">
+          <div class="absolute right-0 top-full z-[60] w-60 rounded-lg border border-slate-200 bg-white p-3 shadow-xl opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
             <p class="text-xs font-semibold text-slate-700 mb-2">系统服务</p>
             <p class="text-xs text-slate-500 mb-3">
               {{ serviceState === 'running' ? '🟢 运行中 — 关闭窗口后隧道继续运行' : serviceState === 'stopped' ? '🟡 已停止' : '⚪ 未安装' }}
@@ -348,9 +348,9 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           </div>
         </div>
         <!-- hover dropdown -->
-        <div class="relative group">
+        <div class="relative group py-2">
           <button class="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">☰ 更多</button>
-          <div class="absolute right-0 top-8 z-[60] hidden w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-xl group-hover:block">
+          <div class="absolute right-0 top-full z-[60] w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-xl opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
             <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="emit('toggle-log')">终端日志</button>
             <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="OpenLogDir()">打开日志目录</button>
             <div class="my-1 border-t border-slate-100"></div>
