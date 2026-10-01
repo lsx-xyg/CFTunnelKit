@@ -2,11 +2,16 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { api, type cloudflare } from '@/api'
 import { friendlyError } from '@/utils/error'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 
 // Create dialog (issue #6): name validation → CreateTunnel → immediate
 // run-token display with copy. A token fetch failure never blocks the
 // creation; the dialog then offers "请在详情页重试".
 const emit = defineEmits<{ (e: 'close'): void; (e: 'created'): void }>()
+
+const dialogRef = ref<HTMLElement | null>(null)
+const openRef = ref(true)
+useFocusTrap(dialogRef, openRef)
 
 // Esc closes dialog
 function escHandler(e: KeyboardEvent) {
@@ -70,7 +75,7 @@ async function copyToken() {
 
 <template>
   <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 animate-fade-in" @click.self="emit('close')">
-    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl animate-zoom-in">
+    <div ref="dialogRef" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl animate-zoom-in">
       <template v-if="phase === 'form'">
         <h2 class="text-lg font-bold text-slate-900">创建 Tunnel</h2>
         <p class="mt-1 text-xs text-slate-400">创建远程管理型 Tunnel（config_src: cloudflare）</p>

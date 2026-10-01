@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { Copy, Check, X } from 'lucide-vue-next'
 import { api, type cloudflare } from '@/api'
 import { friendlyError } from '@/utils/error'
 import TunnelStatusBadge from './TunnelStatusBadge.vue'
-import { useEscape } from '@/composables/useEscape'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 
 // Detail dialog (issue #6): metadata + connection count + run token
 // (hidden by default, reveal + copy) + delete flow (type the tunnel name
@@ -25,8 +25,11 @@ const confirmName = ref('')
 const deleteBusy = ref(false)
 const deleteError = ref('')
 
+const dialogRef = ref<HTMLElement | null>(null)
+const openRef = ref(true)
+useFocusTrap(dialogRef, openRef)
+
 // Esc closes dialog
-import { onUnmounted } from 'vue'
 function escHandler(e: KeyboardEvent) {
   if (e.key === 'Escape') emit('close')
 }
@@ -102,7 +105,7 @@ onMounted(load)
 
 <template>
   <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 animate-fade-in" @click.self="phase === 'confirm-delete' ? null : emit('close')">
-    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl animate-zoom-in">
+    <div ref="dialogRef" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl animate-zoom-in">
       <template v-if="phase === 'detail'">
         <div class="flex items-start justify-between">
           <div>
