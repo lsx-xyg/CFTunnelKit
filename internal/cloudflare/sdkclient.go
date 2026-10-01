@@ -107,7 +107,7 @@ func (c *sdkClient) PutIngressConfig(ctx context.Context, accountID, tunnelID st
 	return err
 }
 
-// --- DNS ---
+// --- DNS (not yet migrated, hand-written client used) ---
 
 func (c *sdkClient) ListZones(ctx context.Context, accountID string) ([]Zone, error) {
 	return nil, fmt.Errorf("not migrated")
