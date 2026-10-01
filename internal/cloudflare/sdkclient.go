@@ -75,11 +75,36 @@ func (c *sdkClient) GetTunnelDetail(ctx context.Context, accountID, tunnelID str
 // --- Ingress config ---
 
 func (c *sdkClient) GetIngressConfig(ctx context.Context, accountID, tunnelID string) ([]IngressRule, error) {
-	return nil, fmt.Errorf("not migrated")
+	svc := zero_trust.NewTunnelCloudflaredConfigurationService()
+	resp, err := svc.Get(ctx, tunnelID, zero_trust.TunnelCloudflaredConfigurationGetParams{
+		AccountID: cf.F(accountID),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out []IngressRule
+	for _, ing := range resp.Config.Ingress {
+		out = append(out, IngressRule{Hostname: ing.Hostname, Service: ing.Service})
+	}
+	return out, nil
 }
 
 func (c *sdkClient) PutIngressConfig(ctx context.Context, accountID, tunnelID string, rules []IngressRule) error {
-	return fmt.Errorf("not migrated")
+	var ingress []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress
+	for _, r := range rules {
+		ingress = append(ingress, zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress{
+			Hostname: cf.F(r.Hostname),
+			Service:  cf.F(r.Service),
+		})
+	}
+	svc := zero_trust.NewTunnelCloudflaredConfigurationService()
+	_, err := svc.Update(ctx, tunnelID, zero_trust.TunnelCloudflaredConfigurationUpdateParams{
+		AccountID: cf.F(accountID),
+		Config: cf.F(zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfig{
+			Ingress: cf.F(ingress),
+		}),
+	})
+	return err
 }
 
 // --- DNS ---
