@@ -26,6 +26,7 @@ type App struct {
 	win  *service.WindowHandler
 	ah   *service.AuthHandler
 	th   *service.TunnelHandler
+	ih   *service.IngressHandler
 }
 
 // NewApp creates the App with a config store and the process manager at the
@@ -86,6 +87,7 @@ func (a *App) startup(ctx context.Context) {
 	a.win = service.NewWindowHandler(ctx)
 	a.ah = service.NewAuthHandler(a.auth, ctx)
 	a.th = service.NewTunnelHandler(a.auth, ctx)
+	a.ih = service.NewIngressHandler(a.auth, ctx)
 	a.auth.LoadPersisted()
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -193,20 +195,19 @@ func (a *App) GetTunnelToken(tunnelID string) (string, error) {
 
 // ---- slice 05: ingress editor bindings ----
 
-// ListZones returns the account's zones (hostname root-domain validation).
+// ListZones returns the account's zones.
 func (a *App) ListZones() ([]cloudflare.Zone, error) {
-	return a.auth.ListZones(a.ctxOrBackground())
+	return a.ih.ListZones()
 }
 
-// GetIngressConfig returns the tunnel's ingress rules (catch-all stripped).
+// GetIngressConfig returns the tunnel's ingress rules.
 func (a *App) GetIngressConfig(tunnelID string) ([]cloudflare.IngressRule, error) {
-	return a.auth.GetIngressConfig(a.ctxOrBackground(), tunnelID)
+	return a.ih.GetIngressConfig(tunnelID)
 }
 
-// SaveIngressConfig runs the issue #5 save flow (PUT + read-back compare)
-// and returns the read-back rules on success.
+// SaveIngressConfig saves ingress rules.
 func (a *App) SaveIngressConfig(tunnelID string, rules []cloudflare.IngressRule) ([]cloudflare.IngressRule, error) {
-	return a.auth.SaveIngressConfig(a.ctxOrBackground(), tunnelID, rules)
+	return a.ih.SaveIngressConfig(tunnelID, rules)
 }
 
 // ---- slice 06: DNS link bindings ----
