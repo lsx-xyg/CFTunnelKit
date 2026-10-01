@@ -15,6 +15,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
 	"github.com/lsx-xyg/CFTunnelKit/internal/applog"
+	"github.com/lsx-xyg/CFTunnelKit/internal/winutil"
 )
 
 //go:embed all:frontend/dist
@@ -113,6 +114,6 @@ func setAutoStart(enable bool) {
 	// create .lnk via PowerShell
 	ps := fmt.Sprintf(`$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%s'); $s.TargetPath = '%s'; $s.Save()`, shortcutPath(), exe)
 	cmd := exec.Command("powershell", "-Command", ps)
-	hideWindow(cmd)
+	winutil.HideConsole(cmd)
 	_ = cmd.Run()
 }
