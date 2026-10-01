@@ -121,7 +121,7 @@ onUnmounted(() => {
         class="fixed bottom-0 left-0 right-0 z-40 flex flex-col border-t border-slate-700 bg-slate-900 shadow-2xl"
         :class="logFullscreen ? 'top-10' : ''">
         <!-- drag handle -->
-        <div class="flex justify-center pt-0.5 cursor-row-resize select-none" @mousedown="onDragStart">
+        <div class="flex justify-center pt-0.5 cursor-row-resize select-none" title="拖拽调整高度" @mousedown="onDragStart">
           <div class="h-1 w-16 rounded-full bg-slate-600"></div>
         </div>
         <div class="flex items-center justify-between gap-2 border-b border-slate-700 px-3 py-1">
@@ -139,8 +139,8 @@ onUnmounted(() => {
               <option value="DEBUG">DEBUG</option>
             </select>
             <span class="text-xs text-slate-500">{{ logTab === 'runtime' ? filteredLogs.length : opLogs.length }} 行</span>
-            <button class="text-xs text-slate-400 hover:text-white" @click="logFullscreen = !logFullscreen">{{ logFullscreen ? '还原' : '全屏' }}</button>
-            <button class="text-xs text-slate-400 hover:text-white" @click="toggleLog">收起</button>
+            <button class="text-xs text-slate-400 hover:text-white transition-colors" @click="logFullscreen = !logFullscreen">{{ logFullscreen ? '还原' : '全屏' }}</button>
+            <button class="text-xs text-slate-400 hover:text-white transition-colors" @click="toggleLog">收起</button>
           </div>
         </div>
         <div class="overflow-y-auto px-3 py-2 font-mono text-xs leading-5 text-slate-100 slim-scroll"

@@ -98,9 +98,9 @@ onMounted(load)
         <div class="flex items-start justify-between">
           <div>
             <h2 class="text-lg font-bold text-slate-900">{{ detail?.name ?? '…' }}</h2>
-            <p class="mt-0.5 font-mono text-xs text-slate-400">{{ detail?.id }}</p>
+            <p class="mt-0.5 font-mono text-xs text-slate-500">{{ detail?.id }}</p>
           </div>
-          <button class="text-slate-400 hover:text-slate-600" @click="emit('close')"><X class="h-5 w-5" /></button>
+          <button class="text-slate-400 hover:text-slate-600 transition-colors" aria-label="关闭" @click="emit('close')"><X class="h-5 w-5" /></button>
         </div>
 
         <div v-if="loading" class="mt-4 space-y-2">

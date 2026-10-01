@@ -281,7 +281,7 @@ onMounted(load)
         </button>
         <div>
           <h1 class="text-sm font-bold text-slate-900">Ingress 规则</h1>
-          <p class="text-xs text-slate-400">{{ tunnelName }} · {{ tunnelId }}</p>
+          <p class="text-xs text-slate-500">{{ tunnelName }} · {{ tunnelId }}</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -383,7 +383,7 @@ onMounted(load)
         >
           + 添加规则
         </button>
-        <p class="mt-2 text-xs text-slate-400">
+        <p class="mt-2 text-xs text-slate-500">
           保存时自动追加末位 404 兜底规则（http_status:404），无需手动维护。
         </p>
       </template>

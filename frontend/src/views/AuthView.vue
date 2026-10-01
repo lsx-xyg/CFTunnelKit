@@ -73,7 +73,7 @@ const permissionRows: { key: keyof cloudflare.Permissions; label: string }[] = [
           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           @keyup.enter="verify"
         />
-        <p class="mt-2 text-xs leading-relaxed text-slate-400">
+        <p class="mt-2 text-xs leading-relaxed text-slate-500">
           需要权限：Cloudflare Tunnel:Edit、DNS:Edit、Zone:Read
         </p>
       </div>

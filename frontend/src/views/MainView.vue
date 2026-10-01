@@ -314,9 +314,9 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </div>
       <div class="flex items-center gap-3">
         <!-- status dot with hover tooltip -->
-        <div class="relative group py-2">
-          <div class="h-2.5 w-2.5 rounded-full cursor-default bg-slate-300" />
-          <div class="absolute right-0 top-full z-[60] w-60 rounded-lg border border-slate-200 bg-white p-3 shadow-xl opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
+        <div class="relative group">
+          <button type="button" aria-label="API 权限状态" class="h-2.5 w-2.5 rounded-full bg-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" />
+          <div class="absolute right-0 top-full z-[60] w-60 rounded-xl border border-slate-200 bg-white p-3 shadow-lg opacity-0 translate-y-1 transition-opacity duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
             <p class="text-xs font-semibold text-slate-700 mb-1">API 权限</p>
             <div v-for="row in permissionRows" :key="row.key" class="flex items-center justify-between py-0.5">
               <span class="text-xs text-slate-500">{{ row.label }}</span>
@@ -424,19 +424,19 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       <!-- stats cards -->
       <div v-if="tunnels.length > 0" class="grid grid-cols-4 gap-3 mb-4">
         <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-          <p class="text-xs text-slate-400">总隧道</p>
+          <p class="text-xs text-slate-500">总隧道</p>
           <p class="text-xl font-bold text-slate-800">{{ tunnels.length }}</p>
         </div>
         <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-          <p class="text-xs text-slate-400">运行中</p>
+          <p class="text-xs text-slate-500">运行中</p>
           <p class="text-xl font-bold text-green-600">{{ runningCount }}</p>
         </div>
         <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-          <p class="text-xs text-slate-400">已停止</p>
+          <p class="text-xs text-slate-500">已停止</p>
           <p class="text-xl font-bold text-slate-500">{{ stoppedCount }}</p>
         </div>
         <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-          <p class="text-xs text-slate-400">异常</p>
+          <p class="text-xs text-slate-500">异常</p>
           <p class="text-xl font-bold text-red-500">{{ errorCount }}</p>
         </div>
       </div>
@@ -445,8 +445,8 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       <div v-if="tunnels.length > 0" class="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
         <div class="flex items-center justify-end border-b border-slate-100 px-4 py-1.5">
           <div class="flex items-center gap-1.5">
-          <span class="text-xs text-slate-400">轮询</span>
-          <select v-model.number="pollInterval" class="rounded border border-slate-200 px-1.5 py-0.5 text-xs" @change="restartPoll" title="轮询间隔">
+          <span class="text-xs text-slate-500">轮询</span>
+          <select v-model.number="pollInterval" class="rounded-lg border border-slate-200 px-1.5 py-0.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" @change="restartPoll" title="轮询间隔">
             <option :value="5">5s</option>
             <option :value="15">15s</option>
             <option :value="30">30s</option>
