@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue'
+import { Copy, Check, X } from 'lucide-vue-next'
 import { DeleteTunnel, GetTunnelDetail, GetTunnelToken } from '../../wailsjs/go/main/App'
 import type { cloudflare } from '../../wailsjs/go/models'
 import TunnelStatusBadge from './TunnelStatusBadge.vue'
@@ -16,7 +17,6 @@ const detail = ref<cloudflare.TunnelDetail | null>(null)
 
 const token = ref('')
 const tokenError = ref('')
-const showToken = ref(false)
 const copied = ref(false)
 
 const phase = ref<'detail' | 'confirm-delete'>('detail')
@@ -98,7 +98,7 @@ onMounted(load)
             <h2 class="text-lg font-bold text-slate-900">{{ detail?.name ?? '…' }}</h2>
             <p class="mt-0.5 font-mono text-xs text-slate-400">{{ detail?.id }}</p>
           </div>
-          <button class="text-slate-400 hover:text-slate-600" @click="emit('close')">✕</button>
+          <button class="text-slate-400 hover:text-slate-600" @click="emit('close')"><X class="h-5 w-5" /></button>
         </div>
 
         <div v-if="loading" class="mt-4 space-y-2">
@@ -127,28 +127,24 @@ onMounted(load)
             </div>
           </dl>
 
-          <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p class="text-sm font-medium text-slate-700">运行 Token</p>
-            <p v-if="tokenError" class="mt-1 text-xs text-amber-700">{{ tokenError }}</p>
-            <template v-else>
-              <p class="mt-1 break-all font-mono text-xs text-slate-500">
-                {{ showToken ? token : '••••••••••••••••••••••••••••' }}
-              </p>
-              <div class="mt-3 flex gap-2">
-                <button
-                  class="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-white"
-                  @click="showToken = !showToken"
-                >
-                  {{ showToken ? '隐藏' : '显示' }}
-                </button>
-                <button
-                  class="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
-                  @click="copyToken"
-                >
-                  {{ copied ? '已复制' : '复制' }}
-                </button>
-              </div>
-            </template>
+          <div class="mt-4 flex items-center gap-4">
+            <span class="w-20 shrink-0 text-sm text-slate-500">运行 Token</span>
+            <div v-if="tokenError" class="text-xs text-amber-700">{{ tokenError }}</div>
+            <div v-else class="relative flex-1">
+              <input
+                type="password"
+                :value="token"
+                readonly
+                class="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 pr-10 font-mono text-xs text-slate-600 focus:outline-none"
+              />
+              <button
+                class="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+                @click="copyToken"
+              >
+                <Check v-if="copied" class="h-4 w-4 text-green-600" />
+                <Copy v-else class="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div class="mt-5 flex justify-between">
