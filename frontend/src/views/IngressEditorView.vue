@@ -84,6 +84,20 @@ function updateHostname(r: Rule) {
   r.hostname = combineHostname(r._zoneId ?? '', r._subdomain ?? '')
 }
 
+// onZoneChange: when switching from custom to a real zone, try to split the
+// full hostname back into subdomain + zone.
+function onZoneChange(r: Rule) {
+  if (r._zoneId === '__custom__') return
+  const z = zones.value.find((x) => x.id === r._zoneId)
+  if (!z) return
+  const cur = (r._subdomain ?? '').trim().toLowerCase()
+  // If current subdomain looks like a full hostname ending with this zone, split it.
+  if (cur.endsWith('.' + z.name.toLowerCase())) {
+    r._subdomain = cur.slice(0, cur.length - z.name.length - 1)
+  }
+  updateHostname(r)
+}
+
 // ---- slice 06: DNS link dialogs ----
 interface DNSPrompt {
   create: string[] // hostnames to create CNAMEs for
@@ -430,34 +444,23 @@ onMounted(load)
               <!-- two-part hostname: subdomain + zone dropdown -->
               <div class="w-40 flex-none">
                 <input
-                  v-if="r._zoneId !== '__custom__'"
                   v-model="r._subdomain"
-                  :placeholder="r._zoneId ? '子域（留空=根域名）' : '子域，如 nas'"
-                  :disabled="r.locked"
-                  class="w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:border-blue-500 focus:outline-none"
-                  @input="updateHostname(r)"
-                />
-                <input
-                  v-else
-                  v-model="r._subdomain"
-                  placeholder="完整域名"
+                  :placeholder="r._zoneId === '__custom__' ? '完整域名' : '子域（留空=根域名）'"
                   :disabled="r.locked"
                   class="w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:border-blue-500 focus:outline-none"
                   @input="updateHostname(r)"
                 />
               </div>
               <select
-                v-if="r._zoneId !== '__custom__'"
                 v-model="r._zoneId"
                 :disabled="r.locked"
-                class="min-w-[8rem] max-w-[12rem] rounded-md border border-slate-200 px-2 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 focus:border-blue-500 focus:outline-none"
-                @change="updateHostname(r)"
+                class="min-w-[8rem] max-w-[12rem] flex-none rounded-md border border-slate-200 px-2 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 focus:border-blue-500 focus:outline-none"
+                @change="onZoneChange(r)"
               >
                 <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.name }}</option>
                 <option value="__custom__">自定义</option>
               </select>
-              <span v-else class="text-sm text-slate-400">自定义域名</span>
-              <span class="text-slate-400">→</span>
+              <span class="w-4 text-center text-slate-400 flex-none">→</span>
               <input
                 v-model="r.service"
                 placeholder="http://localhost:8080"
