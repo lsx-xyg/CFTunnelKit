@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, type Ref } from 'vue'
 import { api, type cloudflare } from '@/api'
 import { friendlyError } from '@/utils/error'
 import { useEscape } from '@/composables/useEscape'

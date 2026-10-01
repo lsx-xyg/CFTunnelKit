@@ -21,6 +21,8 @@ export function GetTunnelDetail(arg1:string):Promise<cloudflare.TunnelDetail>;
 
 export function GetTunnelToken(arg1:string):Promise<string>;
 
+export function HideWindow():Promise<void>;
+
 export function ListDNSRecords(arg1:string):Promise<Array<cloudflare.DNSRecord>>;
 
 export function ListTunnels():Promise<Array<cloudflare.Tunnel>>;
@@ -31,11 +33,13 @@ export function LogDir():Promise<string>;
 
 export function OpenLogDir():Promise<void>;
 
-export function Quit():Promise<void>;
+export function RestoreRunning():Promise<void>;
 
 export function RetryVerify():Promise<cloudflare.TokenInfo>;
 
 export function SaveIngressConfig(arg1:string,arg2:Array<cloudflare.IngressRule>):Promise<Array<cloudflare.IngressRule>>;
+
+export function ShowWindow():Promise<void>;
 
 export function StartTunnel(arg1:string):Promise<void>;
 
@@ -46,11 +50,3 @@ export function StopTunnel(arg1:string):Promise<void>;
 export function VerifyAndSaveToken(arg1:string):Promise<cloudflare.TokenInfo>;
 
 export function WriteOpLog(arg1:string,arg2:string):Promise<void>;
-
-export function GetServiceStatus():Promise<string>;
-export function InstallService():Promise<void>;
-export function UninstallService():Promise<void>;
-export function StartService():Promise<void>;
-export function StopService():Promise<void>;
-
-export function ReadServiceLog(arg1:number):Promise<string>;

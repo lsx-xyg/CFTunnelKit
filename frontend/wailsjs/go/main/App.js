@@ -38,6 +38,10 @@ export function GetTunnelToken(arg1) {
   return window['go']['main']['App']['GetTunnelToken'](arg1);
 }
 
+export function HideWindow() {
+  return window['go']['main']['App']['HideWindow']();
+}
+
 export function ListDNSRecords(arg1) {
   return window['go']['main']['App']['ListDNSRecords'](arg1);
 }
@@ -58,8 +62,8 @@ export function OpenLogDir() {
   return window['go']['main']['App']['OpenLogDir']();
 }
 
-export function Quit() {
-  return window['go']['main']['App']['Quit']();
+export function RestoreRunning() {
+  return window['go']['main']['App']['RestoreRunning']();
 }
 
 export function RetryVerify() {
@@ -68,6 +72,10 @@ export function RetryVerify() {
 
 export function SaveIngressConfig(arg1, arg2) {
   return window['go']['main']['App']['SaveIngressConfig'](arg1, arg2);
+}
+
+export function ShowWindow() {
+  return window['go']['main']['App']['ShowWindow']();
 }
 
 export function StartTunnel(arg1) {
@@ -88,24 +96,4 @@ export function VerifyAndSaveToken(arg1) {
 
 export function WriteOpLog(arg1, arg2) {
   return window['go']['main']['App']['WriteOpLog'](arg1, arg2);
-}
-
-export function GetServiceStatus() {
-  return window.go.main.App.GetServiceStatus()
-}
-export function InstallService() {
-  return window.go.main.App.InstallService()
-}
-export function UninstallService() {
-  return window.go.main.App.UninstallService()
-}
-export function StartService() {
-  return window.go.main.App.StartService()
-}
-export function StopService() {
-  return window.go.main.App.StopService()
-}
-
-export function ReadServiceLog(lines) {
-  return window.go.main.App.ReadServiceLog(lines)
 }
