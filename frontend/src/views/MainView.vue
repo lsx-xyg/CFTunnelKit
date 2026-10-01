@@ -329,19 +329,22 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
         </span>
       </div>
       <div class="flex items-center gap-3">
-        <span v-for="row in permissionRows" :key="row.key" class="inline-flex items-center gap-1 text-xs">
-          <span class="text-slate-500">{{ row.label }}</span>
-          <PermissionBadge :status="state.token_info?.permissions?.[row.key] ?? 'unverified'" />
-        </span>
         <!-- status dot with hover tooltip -->
         <div class="relative group">
           <div class="h-2.5 w-2.5 rounded-full cursor-default"
             :class="serviceState === 'running' ? 'bg-green-500' : serviceState === 'stopped' ? 'bg-amber-500' : 'bg-slate-300'" />
-          <div class="absolute right-0 top-4 z-[60] hidden w-56 rounded-lg border border-slate-200 bg-white p-3 shadow-xl group-hover:block">
-            <p class="text-xs font-semibold text-slate-700 mb-1">系统服务</p>
-            <p class="text-xs text-slate-500">
+          <div class="absolute right-0 top-4 z-[60] hidden w-60 rounded-lg border border-slate-200 bg-white p-3 shadow-xl group-hover:block">
+            <p class="text-xs font-semibold text-slate-700 mb-2">系统服务</p>
+            <p class="text-xs text-slate-500 mb-3">
               {{ serviceState === 'running' ? '🟢 运行中 — 关闭窗口后隧道继续运行' : serviceState === 'stopped' ? '🟡 已停止' : '⚪ 未安装' }}
             </p>
+            <div class="border-t border-slate-100 pt-2">
+              <p class="text-xs font-semibold text-slate-700 mb-1">API 权限</p>
+              <div v-for="row in permissionRows" :key="row.key" class="flex items-center justify-between py-0.5">
+                <span class="text-xs text-slate-500">{{ row.label }}</span>
+                <PermissionBadge :status="state.token_info?.permissions?.[row.key] ?? 'unverified'" />
+              </div>
+            </div>
           </div>
         </div>
         <!-- hover dropdown -->
