@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { Copy, Check, X } from 'lucide-vue-next'
 import { api, type cloudflare } from '@/api'
+import { friendlyError } from '@/utils/error'
 import TunnelStatusBadge from './TunnelStatusBadge.vue'
 
 // Detail dialog (issue #6): metadata + connection count + run token
@@ -29,7 +30,7 @@ async function load() {
   try {
     detail.value = await api.tunnel.detail(props.tunnelId)
   } catch (e) {
-    error.value = String(e)
+    error.value = friendlyError(e)
     loading.value = false
     return
   }

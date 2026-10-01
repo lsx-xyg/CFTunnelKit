@@ -16,6 +16,9 @@ export function friendlyError(e: unknown): string {
   if (s.includes('invalid name') || s.includes('400')) {
     return '名称格式不正确，只允许字母、数字、- 和 _'
   }
+  if (s.includes('last ingress rule') || s.includes('match all urls')) {
+    return '最后一条规则必须匹配所有 URL（通常是兜底 404 规则）'
+  }
   return String(e)
 }
 

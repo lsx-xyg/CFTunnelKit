@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue'
 import { api, type cloudflare } from '@/api'
+import { friendlyError } from '@/utils/error'
 
 // Ingress editor (issue #5): visual editing of 域名 → 本地端口 rules.
 // The catch-all 404 rule is maintained invisibly by the backend on save
@@ -184,7 +185,7 @@ async function load() {
     snapshot = JSON.stringify((rs ?? []).map(norm))
     savedHosts = hostnamesOf(rs)
   } catch (e) {
-    loadError.value = String(e)
+    loadError.value = friendlyError(e)
   } finally {
     await minDelay
     loading.value = false
@@ -239,7 +240,7 @@ async function save() {
     console.log('[Ingress save] oldHosts=', oldHosts, 'newHosts=', newHosts, 'create=', create, 'remove=', remove, 'zones=', zones.value)
   } catch (e) {
     // PUT failed or read-back mismatch → keep user input, show the error
-    saveError.value = String(e)
+    saveError.value = friendlyError(e)
   } finally {
     saving.value = false
   }
