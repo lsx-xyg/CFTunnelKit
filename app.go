@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/lsx-xyg/CFTunnelKit/internal/applog"
@@ -15,7 +14,6 @@ import (
 	"github.com/lsx-xyg/CFTunnelKit/internal/cloudflare"
 	"github.com/lsx-xyg/CFTunnelKit/internal/config"
 	"github.com/lsx-xyg/CFTunnelKit/internal/process"
-	"github.com/lsx-xyg/CFTunnelKit/internal/service"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -26,7 +24,6 @@ type App struct {
 	ctx  context.Context
 	auth *auth.Service
 	pm   process.ProcessManager
-	svc  *service.Manager
 }
 
 // NewApp creates the App with a config store and the process manager at the
@@ -44,7 +41,6 @@ func NewApp() *App {
 		panic(err)
 	}
 	a := &App{auth: auth.NewService(config.NewStore(path))}
-	a.svc = service.NewManager(filepath.Dir(path))
 	a.pm = process.NewManager(binDir, func(event string, payload interface{}) {
 		if a.ctx != nil {
 			wailsruntime.EventsEmit(a.ctx, event, payload)
@@ -272,81 +268,6 @@ func (a *App) OpenLogDir() {
 // WriteOpLog appends an operation record to operation.log.
 func (a *App) WriteOpLog(action, result string) {
 	applog.OpLog(action, result)
-}
-
-// GetServiceStatus returns the system service status.
-func (a *App) GetServiceStatus() (string, error) {
-	return a.svc.Status()
-}
-
-// InstallService installs the helper as a system service.
-func (a *App) InstallService() error {
-	err := a.svc.Install(service.Config{})
-	if err != nil && runtime.GOOS == "windows" {
-		// try elevating via UAC: re-launch self with elevated flag
-		exe, _ := os.Executable()
-		ps := fmt.Sprintf("Start-Process -FilePath '%s' -ArgumentList '--install-service-elevated' -Verb RunAs -Wait", exe)
-		cmd := exec.Command("powershell", "-Command", ps)
-		if runErr := cmd.Run(); runErr != nil {
-			applog.OpLog("install-service", "elevated failed: "+runErr.Error())
-			return fmt.Errorf("安装服务失败：%w", err)
-		}
-		applog.OpLog("install-service", "ok (elevated)")
-		return nil
-	}
-	if err != nil {
-		applog.OpLog("install-service", "failed: "+err.Error())
-		return fmt.Errorf("安装服务失败：%w", err)
-	}
-	applog.OpLog("install-service", "ok")
-	return nil
-}
-
-// UninstallService removes the system service.
-func (a *App) UninstallService() error {
-	err := a.svc.Uninstall()
-	if err != nil && runtime.GOOS == "windows" {
-		exe, _ := os.Executable()
-		ps := fmt.Sprintf("Start-Process -FilePath '%s' -ArgumentList '--uninstall-service-elevated' -Verb RunAs -Wait", exe)
-		cmd := exec.Command("powershell", "-Command", ps)
-		if runErr := cmd.Run(); runErr != nil {
-			applog.OpLog("uninstall-service", "elevated failed: "+runErr.Error())
-			return fmt.Errorf("卸载服务失败：%w", err)
-		}
-		applog.OpLog("uninstall-service", "ok (elevated)")
-		return nil
-	}
-	if err != nil {
-		applog.OpLog("uninstall-service", "failed: "+err.Error())
-		return fmt.Errorf("卸载服务失败：%w", err)
-	}
-	applog.OpLog("uninstall-service", "ok")
-	return nil
-}
-
-// StartService starts the system service.
-func (a *App) StartService() error {
-	return a.svc.Start()
-}
-
-// StopService stops the system service.
-func (a *App) StopService() error {
-	return a.svc.Stop()
-}
-
-// ReadServiceLog returns the last N lines of service.log.
-func (a *App) ReadServiceLog(lines int) (string, error) {
-	home, _ := os.UserHomeDir()
-	path := home + "/.cftunnelkit/logs/service.log"
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	all := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(all) > lines {
-		all = all[len(all)-lines:]
-	}
-	return strings.Join(all, "\n"), nil
 }
 
 func (a *App) addRunning(id string) {

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { GetAuthState, GetRunStates, GetServiceStatus, InstallService, ListTunnels, OpenLogDir, RetryVerify, StartService, StartTunnel, StopService, StopTunnel, UninstallService, WriteOpLog } from '../../wailsjs/go/main/App'
+import { GetAuthState, GetRunStates, ListTunnels, OpenLogDir, RetryVerify, StartTunnel, StopTunnel, WriteOpLog } from '../../wailsjs/go/main/App'
 import { EventsOn, EventsOff, EventsEmit } from '../../wailsjs/runtime/runtime'
 import type { auth, cloudflare } from '../../wailsjs/go/models'
 import PermissionBadge from '../components/PermissionBadge.vue'
@@ -34,7 +34,6 @@ const retrying = ref(false)
 const loading = ref(false)
 const tunnels = ref<cloudflare.Tunnel[]>([])
 const listError = ref('')
-const serviceState = ref('not-installed')
 const moreOpen = ref(false)
 
 // --- slice 03: process management state ---
@@ -213,37 +212,6 @@ function tunnelName(id: string): string {
   return tunnels.value.find((t) => t.id === id)?.name ?? id
 }
 
-async function toggleService() {
-  try {
-    if (serviceState.value === 'not-installed') {
-      await InstallService()
-      serviceState.value = 'stopped'
-      showToast('已安装系统服务', 'success')
-    } else if (serviceState.value === 'running') {
-      await StopService()
-      serviceState.value = 'stopped'
-      showToast('已停止服务', 'success')
-    } else {
-      await StartService()
-      serviceState.value = 'running'
-      showToast('已启动服务', 'success')
-    }
-  } catch (e) {
-    showToast(String(e), 'error')
-  }
-}
-
-async function uninstallService() {
-  if (!confirm('确定卸载系统服务？')) return
-  try {
-    await UninstallService()
-    serviceState.value = 'not-installed'
-    showToast('已卸载服务', 'success')
-  } catch (e) {
-    showToast(String(e), 'error')
-  }
-}
-
 function fmtTime(iso: string | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -285,7 +253,6 @@ watch(
 onMounted(async () => {
   await loadTunnels()
   runStates.value = await GetRunStates()
-  try { serviceState.value = await GetServiceStatus() } catch {}
   EventsOn('cloudflared:log', (p: LogPayload) => {
     pushLog({ ...p, tunnel_id: p.tunnel_id ?? '' })
   })
@@ -330,19 +297,12 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       <div class="flex items-center gap-3">
         <!-- status dot with hover tooltip -->
         <div class="relative group py-2">
-          <div class="h-2.5 w-2.5 rounded-full cursor-default"
-            :class="serviceState === 'running' ? 'bg-green-500' : serviceState === 'stopped' ? 'bg-amber-500' : 'bg-slate-300'" />
+          <div class="h-2.5 w-2.5 rounded-full cursor-default bg-slate-300" />
           <div class="absolute right-0 top-full z-[60] w-60 rounded-lg border border-slate-200 bg-white p-3 shadow-xl opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
-            <p class="text-xs font-semibold text-slate-700 mb-2">系统服务</p>
-            <p class="text-xs text-slate-500 mb-3">
-              {{ serviceState === 'running' ? '🟢 运行中 — 关闭窗口后隧道继续运行' : serviceState === 'stopped' ? '🟡 已停止' : '⚪ 未安装' }}
-            </p>
-            <div class="border-t border-slate-100 pt-2">
-              <p class="text-xs font-semibold text-slate-700 mb-1">API 权限</p>
-              <div v-for="row in permissionRows" :key="row.key" class="flex items-center justify-between py-0.5">
-                <span class="text-xs text-slate-500">{{ row.label }}</span>
-                <PermissionBadge :status="state.token_info?.permissions?.[row.key] ?? 'unverified'" />
-              </div>
+            <p class="text-xs font-semibold text-slate-700 mb-1">API 权限</p>
+            <div v-for="row in permissionRows" :key="row.key" class="flex items-center justify-between py-0.5">
+              <span class="text-xs text-slate-500">{{ row.label }}</span>
+              <PermissionBadge :status="state.token_info?.permissions?.[row.key] ?? 'unverified'" />
             </div>
           </div>
         </div>
@@ -352,11 +312,6 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           <div class="absolute right-0 top-full z-[60] w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-xl opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
             <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="emit('toggle-log')">终端日志</button>
             <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="OpenLogDir()">打开日志目录</button>
-            <div class="my-1 border-t border-slate-100"></div>
-            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="toggleService()">
-              {{ serviceState === 'not-installed' ? '安装为系统服务' : serviceState === 'running' ? '停止系统服务' : '启动系统服务' }}
-            </button>
-            <button v-if="serviceState !== 'not-installed'" class="block w-full px-4 py-1.5 text-left text-xs text-red-600 hover:bg-red-50" @click="uninstallService()">卸载系统服务</button>
           </div>
         </div>
         <button class="rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-shadow" @click="showCreate = true">
