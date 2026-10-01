@@ -73,7 +73,7 @@ func (c *sdkClient) GetTunnelDetail(ctx context.Context, accountID, tunnelID str
 	if err != nil {
 		return TunnelDetail{}, err
 	}
-	return TunnelDetail{ID: t.ID, Name: t.Name}, nil
+	return TunnelDetail{ID: t.ID, Name: t.Name, CreatedAt: t.CreatedAt}, nil
 }
 
 // --- Ingress config (SDK) ---
