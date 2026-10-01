@@ -19,6 +19,12 @@ export function friendlyError(e: unknown): string {
   if (s.includes('last ingress rule') || s.includes('match all urls')) {
     return '最后一条规则必须匹配所有 URL（通常是兜底 404 规则）'
   }
+  if (s.includes('dns record already exists') || s.includes('81057')) {
+    return 'DNS 记录已存在'
+  }
+  if (s.includes('dns record not found') || s.includes('81044')) {
+    return 'DNS 记录不存在'
+  }
   return String(e)
 }
 

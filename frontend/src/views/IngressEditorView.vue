@@ -97,7 +97,7 @@ async function runDNSPrompt() {
           const res = await api.dns.ensure(z.id, relName(h, z.name), target)
           dnsResults.value.push(`${h}: ${res.created ? '已创建 CNAME' : 'CNAME 已存在（指向当前 Tunnel）'}`)
         } catch (e) {
-          dnsResults.value.push(`${h}: ${String(e)}`)
+          dnsResults.value.push(`${h}: ${friendlyError(e)}`)
         }
       }
     }
@@ -109,7 +109,7 @@ async function runDNSPrompt() {
           await api.dns.remove(z.id, relName(h, z.name))
           dnsResults.value.push(`${h}: DNS 记录已删除`)
         } catch (e) {
-          dnsResults.value.push(`${h}: ${String(e)}（请手动处理）`)
+          dnsResults.value.push(`${h}: ${friendlyError(e)}（请手动处理）`)
         }
       }
     }

@@ -74,7 +74,7 @@ async function doDelete() {
     if (msg.includes('1022') || msg.includes('active connections')) {
       deleteError.value = '该 Tunnel 还有活跃连接，请先停止隧道，等几分钟再删除'
     } else {
-      deleteError.value = msg
+      deleteError.value = friendlyError(e)
     }
     deleteBusy.value = false
   }
