@@ -14,7 +14,8 @@ import (
 // cover well.
 type sdkClient struct {
 	sdk      *cf.Client
-	fallback CFClient // hand-written client for VerifyToken/DNS/etc
+	fallback CFClient
+	token    string
 }
 
 func NewSDKClient(token string, fallback CFClient) CFClient {
@@ -23,7 +24,7 @@ func NewSDKClient(token string, fallback CFClient) CFClient {
 		option.WithAPIToken(token),
 		option.WithHTTPClient(hc),
 	)
-	return &sdkClient{sdk: api, fallback: fallback}
+	return &sdkClient{sdk: api, fallback: fallback, token: token}
 }
 
 // --- Tunnel CRUD (SDK) ---
@@ -75,7 +76,11 @@ func (c *sdkClient) GetTunnelDetail(ctx context.Context, accountID, tunnelID str
 // --- Ingress config (SDK) ---
 
 func (c *sdkClient) GetIngressConfig(ctx context.Context, accountID, tunnelID string) ([]IngressRule, error) {
-	svc := zero_trust.NewTunnelCloudflaredConfigurationService()
+	svc := zero_trust.NewTunnelCloudflaredConfigurationService(
+		option.WithBaseURL("https://api.cloudflare.com/client/v4"),
+		option.WithHTTPClient(&http.Client{Transport: newTransport()}),
+		option.WithAPIToken(c.token),
+	)
 	resp, err := svc.Get(ctx, tunnelID, zero_trust.TunnelCloudflaredConfigurationGetParams{
 		AccountID: cf.F(accountID),
 	})
@@ -97,7 +102,11 @@ func (c *sdkClient) PutIngressConfig(ctx context.Context, accountID, tunnelID st
 			Service:  cf.F(r.Service),
 		})
 	}
-	svc := zero_trust.NewTunnelCloudflaredConfigurationService()
+	svc := zero_trust.NewTunnelCloudflaredConfigurationService(
+		option.WithBaseURL("https://api.cloudflare.com/client/v4"),
+		option.WithHTTPClient(&http.Client{Transport: newTransport()}),
+		option.WithAPIToken(c.token),
+	)
 	_, err := svc.Update(ctx, tunnelID, zero_trust.TunnelCloudflaredConfigurationUpdateParams{
 		AccountID: cf.F(accountID),
 		Config: cf.F(zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfig{
