@@ -23,6 +23,7 @@ type App struct {
 	auth *auth.Service
 	pm   process.ProcessManager
 	sys  *service.SystemHandler
+	win  *service.WindowHandler
 }
 
 // NewApp creates the App with a config store and the process manager at the
@@ -80,6 +81,7 @@ func (a *App) initRollingLog() error {
 // (RetryVerify) so the first GetAuthState is deterministic.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.win = service.NewWindowHandler(ctx)
 	a.auth.LoadPersisted()
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -239,13 +241,12 @@ func (a *App) LogDir() string {
 
 // HideWindow hides the main window (tray behavior)
 func (a *App) HideWindow() {
-	wailsruntime.WindowHide(a.ctx)
+	a.win.HideWindow()
 }
 
 // ShowWindow restores the main window from tray
 func (a *App) ShowWindow() {
-	wailsruntime.WindowShow(a.ctx)
-	wailsruntime.WindowUnminimise(a.ctx)
+	a.win.ShowWindow()
 }
 
 // OpenLogDir opens the logs folder in the system file manager.
