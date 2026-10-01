@@ -527,6 +527,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
     <TunnelDetailDialog
       v-if="detailTunnelId"
       :tunnel-id="detailTunnelId"
+      :run-state="runStates[detailTunnelId] ?? 'stopped'"
       @close="detailTunnelId = null"
       @deleted="onDeleted"
     />

@@ -7,7 +7,7 @@ import TunnelStatusBadge from './TunnelStatusBadge.vue'
 // Detail dialog (issue #6): metadata + connection count + run token
 // (hidden by default, reveal + copy) + delete flow (type the tunnel name
 // to confirm; active-connection errors surface inline).
-const props = defineProps<{ tunnelId: string }>()
+const props = defineProps<{ tunnelId: string; runState?: string }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'deleted'): void }>()
 
 const loading = ref(true)
@@ -107,7 +107,10 @@ onMounted(load)
           <dl class="mt-4 space-y-2 text-sm">
             <div class="flex justify-between">
               <dt class="text-slate-500">状态</dt>
-              <dd><TunnelStatusBadge :status="detail.status" /></dd>
+              <dd><span class="inline-flex min-w-[4rem] items-center justify-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1"
+                :class="runState === 'running' ? 'bg-green-100 text-green-700 ring-green-200' : runState === 'error' ? 'bg-red-100 text-red-700 ring-red-200' : 'bg-slate-200 text-slate-600 ring-slate-300'">
+                {{ runState === 'running' ? '运行中' : runState === 'error' ? '异常' : '未运行' }}
+              </span></dd>
             </div>
             <div class="flex justify-between">
               <dt class="text-slate-500">创建时间</dt>
