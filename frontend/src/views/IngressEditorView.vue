@@ -328,18 +328,20 @@ async function save() {
     // If user chose to create DNS, do it now (after save succeeds).
     if (create.length) {
       const target = props.tunnelId + '.cfargotunnel.com'
-      dnsResults.value = []
+      let ok = 0
+      let failed = 0
       for (const h of create) {
         const z = zoneFor(h)
-        if (!z) { dnsResults.value.push(`${h}: 无匹配 Zone，跳过`); continue }
+        if (!z) continue
         try {
-          const res = await api.dns.ensure(z.id, relName(h, z.name), target)
-          dnsResults.value.push(`${h}: ${res.created ? '已创建 CNAME' : 'CNAME 已存在'}`)
-        } catch (e) {
-          dnsResults.value.push(`${h}: ${friendlyError(e)}`)
+          await api.dns.ensure(z.id, relName(h, z.name), target)
+          ok++
+        } catch {
+          failed++
         }
       }
-      if (dnsResults.value.length) dnsResultsVisible.value = true
+      if (failed) showToast(`DNS 创建完成：${ok} 成功，${failed} 失败`)
+      else showToast(`DNS 已创建（${ok} 条）`)
     }
     // Removed hostnames: clean up DNS (best effort, no prompt).
     for (const h of remove) {
