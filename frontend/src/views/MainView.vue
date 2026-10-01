@@ -32,6 +32,7 @@ const emit = defineEmits<{ (e: 'refresh'): void; (e: 'session-expired'): void; (
 
 const retrying = ref(false)
 const loading = ref(false)
+const pollInterval = ref(15)
 const tunnels = ref<cloudflare.Tunnel[]>([])
 const listError = ref('')
 const moreOpen = ref(false)
@@ -137,22 +138,27 @@ function friendlyError(e: unknown): string {
   return s
 }
 
-async function loadTunnels() {
-  loading.value = true
-  listError.value = ''
-  const minDelay = new Promise((r) => setTimeout(r, 800))
+async function loadTunnels(silent = false) {
+  if (!silent) {
+    loading.value = true
+    listError.value = ''
+  }
   try {
     tunnels.value = await ListTunnels()
   } catch (e) {
-    const st = await GetAuthState()
-    if (!st.authenticated) {
-      emit('session-expired')
-      return
+    if (!silent) {
+      const st = await GetAuthState()
+      if (!st.authenticated) {
+        emit('session-expired')
+        return
+      }
+      listError.value = friendlyError(e)
     }
-    listError.value = friendlyError(e)
   } finally {
-    await minDelay
-    loading.value = false
+    if (!silent) {
+      await new Promise((r) => setTimeout(r, 400))
+      loading.value = false
+    }
   }
 }
 
@@ -252,6 +258,13 @@ watch(
 
 let pollTimer: number | undefined
 
+function restartPoll() {
+  if (pollTimer) clearInterval(pollTimer)
+  if (pollInterval.value > 0) {
+    pollTimer = window.setInterval(() => loadTunnels(true), pollInterval.value * 1000)
+  }
+}
+
 onMounted(async () => {
   await loadTunnels()
   runStates.value = await GetRunStates()
@@ -272,7 +285,7 @@ onMounted(async () => {
     }
   })
   // background poll every 15s
-  pollTimer = window.setInterval(loadTunnels, 15000)
+  restartPoll()
 })
 
 onUnmounted(() => {
@@ -382,7 +395,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
         <p class="text-sm font-medium text-red-700">{{ listError }}</p>
         <button
           class="mt-3 rounded-md bg-red-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
-          @click="loadTunnels"
+          @click="retry"
         >
           重试
         </button>
@@ -421,6 +434,15 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
 
       <!-- tunnel list -->
       <div v-if="tunnels.length > 0" class="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+        <div class="flex items-center justify-end border-b border-slate-100 px-4 py-1.5">
+          <select v-model.number="pollInterval" class="rounded border border-slate-200 px-1.5 py-0.5 text-xs" @change="restartPoll" title="轮询间隔">
+            <option :value="5">5s</option>
+            <option :value="15">15s</option>
+            <option :value="30">30s</option>
+            <option :value="60">60s</option>
+            <option :value="0">关闭</option>
+          </select>
+        </div>
         <table class="min-w-full divide-y divide-slate-200 text-xs">
           <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
