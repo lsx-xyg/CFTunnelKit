@@ -27,6 +27,7 @@ type App struct {
 	ah   *service.AuthHandler
 	th   *service.TunnelHandler
 	ih   *service.IngressHandler
+	dh   *service.DNSHandler
 }
 
 // NewApp creates the App with a config store and the process manager at the
@@ -88,6 +89,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ah = service.NewAuthHandler(a.auth, ctx)
 	a.th = service.NewTunnelHandler(a.auth, ctx)
 	a.ih = service.NewIngressHandler(a.auth, ctx)
+	a.dh = service.NewDNSHandler(a.auth, ctx)
 	a.auth.LoadPersisted()
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -212,21 +214,19 @@ func (a *App) SaveIngressConfig(tunnelID string, rules []cloudflare.IngressRule)
 
 // ---- slice 06: DNS link bindings ----
 
-// ListDNSRecords returns the DNS records of a zone (issue #6).
+// ListDNSRecords returns the DNS records of a zone.
 func (a *App) ListDNSRecords(zoneID string) ([]cloudflare.DNSRecord, error) {
-	return a.auth.ListDNSRecords(a.ctxOrBackground(), zoneID)
+	return a.dh.ListDNSRecords(zoneID)
 }
 
-// EnsureCNAME idempotently creates a CNAME name → target (issue #6).
-// Conflicts surface as "域名 xxx 已被占用，请手动处理" and never overwrite.
+// EnsureCNAME idempotently creates a CNAME name → target.
 func (a *App) EnsureCNAME(zoneID, name, target string) (cloudflare.DNSEnsureResult, error) {
-	return a.auth.EnsureCNAME(a.ctxOrBackground(), zoneID, name, target)
+	return a.dh.EnsureCNAME(zoneID, name, target)
 }
 
-// DeleteDNSByName removes the DNS record matching name in the zone
-// (issue #6 delete link). Missing records are an idempotent success.
+// DeleteDNSByName removes the DNS record matching name in the zone.
 func (a *App) DeleteDNSByName(zoneID, name string) (bool, error) {
-	return a.auth.DeleteDNSByName(a.ctxOrBackground(), zoneID, name)
+	return a.dh.DeleteDNSByName(zoneID, name)
 }
 
 // LogDir returns the absolute path of the directory containing app.log and
