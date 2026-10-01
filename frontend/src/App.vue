@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, onUnmounted, ref, computed } from 'vue'
-import { GetAuthState, RetryVerify } from '../wailsjs/go/main/App'
+import { GetAuthState, ReadServiceLog, RetryVerify } from '../wailsjs/go/main/App'
 import { EventsOn, EventsOff, EventsEmit } from '../wailsjs/runtime/runtime'
 import { auth } from '../wailsjs/go/models'
 import AuthView from './views/AuthView.vue'
@@ -10,7 +10,8 @@ const state = ref<auth.State>(new auth.State({}))
 const booting = ref(true)
 
 const logVisible = ref(false)
-const logTab = ref<'runtime' | 'ops'>('runtime')
+const logTab = ref<'runtime' | 'service' | 'ops'>('runtime')
+const serviceLog = ref('')
 const logLines = ref<{ ts: number; level: string; line: string; tunnel_id?: string }[]>([])
 const opLogs = ref<{ ts: number; action: string; result: string }[]>([])
 const logSearch = ref('')
@@ -30,6 +31,12 @@ function pushOp(p: any) {
 
 function toggleLog() {
   logVisible.value = !logVisible.value
+}
+
+async function loadServiceLog() {
+  try {
+    serviceLog.value = await ReadServiceLog(500)
+  } catch { serviceLog.value = '' }
 }
 
 function onKey(e: KeyboardEvent) {
@@ -128,6 +135,7 @@ onUnmounted(() => {
         <div class="flex items-center justify-between gap-2 border-b border-slate-700 px-3 py-1">
           <div class="flex items-center gap-1">
             <button class="rounded px-2 py-0.5 text-xs font-medium" :class="logTab === 'runtime' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" @click="logTab = 'runtime'">运行日志</button>
+            <button class="rounded px-2 py-0.5 text-xs font-medium" :class="logTab === 'service' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" @click="logTab = 'service'; loadServiceLog()">服务日志</button>
             <button class="rounded px-2 py-0.5 text-xs font-medium" :class="logTab === 'ops' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" @click="logTab = 'ops'">操作记录</button>
           </div>
           <div class="flex items-center gap-2">
@@ -152,6 +160,9 @@ onUnmounted(() => {
               <span class="mr-2 font-bold" :class="levelBadge(l.level)">{{ l.level }}</span>
               <span :class="levelColor(l.level)">{{ l.line }}</span>
             </p>
+          </template>
+          <template v-else-if="logTab === 'service'">
+            <p class="whitespace-pre-wrap break-all text-slate-300">{{ serviceLog || '暂无服务日志 — 安装并启动系统服务后显示' }}</p>
           </template>
           <template v-else>
             <p v-if="opLogs.length === 0" class="text-slate-500">暂无操作记录</p>

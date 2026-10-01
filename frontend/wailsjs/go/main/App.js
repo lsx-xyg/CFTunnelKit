@@ -105,3 +105,7 @@ export function StartService() {
 export function StopService() {
   return window.go.main.App.StopService()
 }
+
+export function ReadServiceLog(lines) {
+  return window.go.main.App.ReadServiceLog(lines)
+}

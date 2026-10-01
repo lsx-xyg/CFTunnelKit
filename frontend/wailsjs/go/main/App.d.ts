@@ -52,3 +52,5 @@ export function InstallService():Promise<void>;
 export function UninstallService():Promise<void>;
 export function StartService():Promise<void>;
 export function StopService():Promise<void>;
+
+export function ReadServiceLog(arg1:number):Promise<string>;

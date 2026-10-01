@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/lsx-xyg/CFTunnelKit/internal/applog"
 	"github.com/lsx-xyg/CFTunnelKit/internal/auth"
@@ -318,4 +319,19 @@ func (a *App) StartService() error {
 // StopService stops the system service.
 func (a *App) StopService() error {
 	return a.svc.Stop()
+}
+
+// ReadServiceLog returns the last N lines of service.log.
+func (a *App) ReadServiceLog(lines int) (string, error) {
+	home, _ := os.UserHomeDir()
+	path := home + "/.cftunnelkit/logs/service.log"
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	all := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(all) > lines {
+		all = all[len(all)-lines:]
+	}
+	return strings.Join(all, "\n"), nil
 }
