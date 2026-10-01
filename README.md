@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="logo.png" alt="CFTunnelKit" width="120" />
+
 # CFTunnelKit
 
 **可视化管理 Cloudflare Tunnel 的 Windows 桌面工具，无需命令行，自动配置 Ingress 规则和 DNS。**
