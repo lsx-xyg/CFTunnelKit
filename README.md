@@ -93,7 +93,7 @@ wails dev
 ### 打包
 
 ```bash
-wails build
+wails build -clean
 ```
 
 产物在 `build/bin/cftunnelkit.exe`。
@@ -117,17 +117,17 @@ git push origin v0.6.0
 
 ## 技术栈
 
-- **后端**：Go 1.26 · Wails v2.16 · energye/systray
-- **前端**：Vue 3 · TypeScript · Tailwind CSS · Vite
+- **后端**：Go 1.26 · Wails v2.16 · energye/systray · cloudflare-go v7
+- **前端**：Vue 3 · TypeScript · Tailwind CSS · Vite · lucide-vue-next
 - **网络**：内置 Mozilla CA bundle（121 根）+ 阿里 DNS resolver（223.5.5.5）
 
 ## 路线图
 
 - [x] 后台轮询 Cloudflare tunnel 状态 — [#37](https://github.com/lsx-xyg/CFTunnelKit/issues/37)
 - [x] 迁移到 cloudflare/cloudflare-go 官方 SDK v7 — [#38](https://github.com/lsx-xyg/CFTunnelKit/issues/38)
+- [x] 前端 @/api 分层，组件不再直连 wailsjs
 - [ ] VerifyToken 迁移到 SDK — [#41](https://github.com/lsx-xyg/CFTunnelKit/issues/41)
 - [ ] Linux / macOS 构建
-- [ ] 代码分层与前端组件重构
 
 ## License
 
