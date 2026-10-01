@@ -176,9 +176,8 @@ async function startTunnel(t: cloudflare.Tunnel) {
   try {
     await StartTunnel(t.id)
     runStates.value[t.id] = 'running'
-    // local optimistic update only — no full list reload
     const row = tunnels.value.find((x) => x.id === t.id)
-    if (row) row.status = 'HEALTHY'
+    if (row) row.status = 'healthy'
     showToast(`已启动 ${t.name}`, 'success')
     pushOp(`启动隧道 ${t.name}（${t.id.slice(0,8)}）`, 'ok')
   } catch (e) {
@@ -198,7 +197,7 @@ async function stopTunnel(t: cloudflare.Tunnel) {
     await StopTunnel(t.id)
     runStates.value[t.id] = 'stopped'
     const row = tunnels.value.find((x) => x.id === t.id)
-    if (row) row.status = 'INACTIVE'
+    if (row) row.status = 'down'
     showToast(`已停止 ${t.name}`, 'success')
     pushOp(`停止隧道 ${t.name}（${t.id.slice(0,8)}）`, 'ok')
   } catch (e) {
