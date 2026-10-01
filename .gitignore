@@ -1,12 +1,27 @@
-build/bin
-node_modules
-frontend/dist
-.tmp-tool-results/
-.codegraph/
-build/windows/installer/tmp/
-build/windows/installer/project.nsi
+# binaries
+build/bin/
+*.exe
+*.dll
+*.so
+*.dylib
 
-# wails generated bindings (regenerated on every dev run)
-frontend/wailsjs/go/
-frontend/wailsjs/runtime/frontend/
+# node
+node_modules/
+frontend/dist/
 frontend/package.json.md5
+
+# wails generated bindings
+frontend/wailsjs/go/
+
+# installer temp
+build/windows/installer/tmp/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# editor / tooling
+.codegraph/
+.tmp-tool-results/
+*.log
