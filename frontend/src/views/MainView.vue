@@ -221,7 +221,8 @@ function tunnelName(id: string): string {
 function fmtTime(iso: string | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
-  return isNaN(d.getTime()) ? iso : d.toLocaleString('zh-CN', { hour12: false })
+  if (isNaN(d.getTime()) || d.getFullYear() < 2020) return '—'
+  return d.toLocaleString('zh-CN', { hour12: false })
 }
 
 function logTime(ts: number): string {

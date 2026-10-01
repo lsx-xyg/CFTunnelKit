@@ -41,7 +41,7 @@ func (c *sdkClient) ListTunnels(ctx context.Context, accountID string, page, per
 	}
 	var out []Tunnel
 	for _, t := range resp.Result {
-		out = append(out, Tunnel{ID: t.ID, Name: t.Name})
+		out = append(out, Tunnel{ID: t.ID, Name: t.Name, CreatedAt: t.CreatedAt})
 	}
 	return out, nil
 }
@@ -54,7 +54,7 @@ func (c *sdkClient) CreateTunnel(ctx context.Context, accountID, name string) (T
 	if err != nil {
 		return Tunnel{}, err
 	}
-	return Tunnel{ID: t.ID, Name: t.Name}, nil
+	return Tunnel{ID: t.ID, Name: t.Name, CreatedAt: t.CreatedAt}, nil
 }
 
 func (c *sdkClient) DeleteTunnel(ctx context.Context, accountID, tunnelID string) error {
