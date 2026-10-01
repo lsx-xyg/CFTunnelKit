@@ -24,6 +24,7 @@ type App struct {
 	pm   process.ProcessManager
 	sys  *service.SystemHandler
 	win  *service.WindowHandler
+	ah   *service.AuthHandler
 }
 
 // NewApp creates the App with a config store and the process manager at the
@@ -82,6 +83,7 @@ func (a *App) initRollingLog() error {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.win = service.NewWindowHandler(ctx)
+	a.ah = service.NewAuthHandler(a.auth, ctx)
 	a.auth.LoadPersisted()
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -108,19 +110,18 @@ func (a *App) ctxOrBackground() context.Context {
 
 // GetAuthState returns the current authentication state for the frontend.
 func (a *App) GetAuthState() auth.State {
-	return a.auth.GetState()
+	return a.ah.GetAuthState()
 }
 
 // VerifyAndSaveToken validates a user-supplied API token and persists it on
-// success. Errors are user-facing messages ("Token 无效或已失效" etc.).
+// success.
 func (a *App) VerifyAndSaveToken(token string) (cloudflare.TokenInfo, error) {
-	return a.auth.VerifyAndSaveToken(a.ctxOrBackground(), token)
+	return a.ah.VerifyAndSaveToken(token)
 }
 
-// RetryVerify re-verifies the persisted token (offline retry button and
-// startup restore).
+// RetryVerify re-verifies the persisted token.
 func (a *App) RetryVerify() (cloudflare.TokenInfo, error) {
-	return a.auth.RetryVerify(a.ctxOrBackground())
+	return a.ah.RetryVerify()
 }
 
 // ListTunnels returns the account's tunnels (page=1, per_page=50).
