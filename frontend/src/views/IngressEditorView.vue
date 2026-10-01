@@ -519,7 +519,7 @@ onMounted(load)
     <Teleport to="body">
     <div
       v-if="toast"
-      class="fixed right-6 top-6 z-50 max-w-sm rounded-lg bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg"
+      class="fixed right-6 top-6 z-50 max-w-sm rounded-lg bg-slate-800 px-4 py-2.5 text-sm text-white shadow-lg animate-slide-in-right"
     >
       {{ toast }}
     </div>

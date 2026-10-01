@@ -548,7 +548,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
     <Teleport to="body">
       <div
         v-if="toast"
-        class="fixed right-6 top-6 z-50 max-w-md rounded-lg px-4 py-2.5 text-sm text-white shadow-lg break-words"
+        class="fixed right-6 top-6 z-50 max-w-md rounded-lg px-4 py-2.5 text-sm text-white shadow-lg break-words animate-slide-in-right"
         :class="toast.type === 'success' ? 'bg-green-600' : toast.type === 'error' ? 'bg-red-600' : 'bg-slate-800'"
       >
         {{ toast.msg }}

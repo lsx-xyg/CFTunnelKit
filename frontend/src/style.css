@@ -17,5 +17,16 @@ body {
 
 @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
 @keyframes zoom-in { from { opacity: 0; transform: scale(0.95) } to { opacity: 1; transform: scale(1) } }
+@keyframes slide-in-right { from { opacity: 0; transform: translateX(1rem) } to { opacity: 1; transform: translateX(0) } }
 .animate-fade-in { animation: fade-in 0.15s ease-out }
 .animate-zoom-in { animation: zoom-in 0.15s ease-out }
+.animate-slide-in-right { animation: slide-in-right 0.2s ease-out }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in, .animate-zoom-in, .animate-slide-in-right {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
