@@ -347,7 +347,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       </p>
       <button
         :disabled="retrying"
-        class="rounded-md bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700 disabled:bg-amber-300"
+        class="rounded-md bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700 disabled:bg-amber-300 transition-colors"
         @click="retry"
       >
         {{ retrying ? '重试中…' : '重试' }}
@@ -393,16 +393,16 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       <!-- list error: stay on page + retry -->
       <div v-else-if="listError" class="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
         <p class="text-sm font-medium text-red-700">{{ listError.msg }}</p>
-        <div class="mt-3 flex items-center justify-center gap-2">
+        <div class="mt-4 flex items-center justify-center gap-2">
           <button
-            class="rounded-md bg-red-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
+            class="rounded-md bg-red-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
             @click="retry"
           >
             重试
           </button>
           <button
             v-if="listError.needReauth"
-            class="rounded-md border border-red-300 bg-white px-4 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50"
+            class="rounded-md border border-red-300 bg-white px-4 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50 transition-colors"
             @click="emit('session-expired')"
           >
             重新配置 Token
@@ -414,7 +414,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       <div v-else-if="tunnels.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
         <p class="text-sm font-medium text-slate-600">此账户还没有 Tunnel</p>
         <button
-          class="mt-4 rounded-md bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700"
+          class="mt-4 rounded-md bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
           @click="showCreate = true"
         >
           创建 Tunnel
@@ -480,13 +480,13 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
               <td class="px-4 py-2.5 text-slate-500">{{ fmtTime(t.created_at) }}</td>
               <td class="px-4 py-2.5 whitespace-nowrap">
                 <button
-                  class="mr-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  class="mr-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                   @click="openIngress(t)"
                 >
                   Ingress
                 </button>
                 <button
-                  class="mr-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  class="mr-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                   @click="detailTunnelId = t.id"
                 >
                   详情
@@ -494,7 +494,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
                 <button
                   v-if="runStates[t.id] !== 'running'"
                   :disabled="busy[t.id]"
-                  class="inline-block w-[72px] rounded-md bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:bg-green-300"
+                  class="inline-block w-[72px] rounded-md bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:bg-green-300 transition-colors"
                   @click="startTunnel(t)"
                 >
                   {{ busy[t.id] ? '启动中' : '启动' }}
@@ -502,7 +502,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
                 <button
                   v-else
                   :disabled="busy[t.id]"
-                  class="inline-block w-[72px] rounded-md bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300"
+                  class="inline-block w-[72px] rounded-md bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:bg-red-300 transition-colors"
                   @click="stopTunnel(t)"
                 >
                   {{ busy[t.id] ? '停止中' : '停止' }}
