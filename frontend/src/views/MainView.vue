@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { api, type auth, type cloudflare } from '@/api'
+import { friendlyError, needsReauth } from '@/utils/error'
 import { EventsOn, EventsOff, EventsEmit } from '../../wailsjs/runtime/runtime'
 import PermissionBadge from '../components/PermissionBadge.vue'
 import TunnelStatusBadge from '../components/TunnelStatusBadge.vue'
@@ -131,18 +132,8 @@ function showToast(msg: string, type: 'success' | 'error' | 'info' = 'info') {
 }
 
 // Maps backend error strings to the issue copy for the inline error state.
-function friendlyError(e: unknown): { msg: string; needReauth: boolean } {
-  const s = String(e).toLowerCase()
-  if (s.includes('权限') || s.includes('403') || s.includes('permission')) {
-    return { msg: '权限不足，请检查 Token 是否包含 Tunnel:Edit / Zone:Read / DNS:Edit 权限', needReauth: false }
-  }
-  if (s.includes('未认证') || s.includes('401') || s.includes('token') || s.includes('unauthorized')) {
-    return { msg: 'Token 已失效或无效，请重新配置', needReauth: true }
-  }
-  if (s.includes('网络') || s.includes('timeout') || s.includes('connection') || s.includes('dial')) {
-    return { msg: '无法连接 Cloudflare API，请检查网络', needReauth: false }
-  }
-  return { msg: String(e), needReauth: false }
+function mapError(e: unknown) {
+  return { msg: friendlyError(e), needReauth: needsReauth(e) }
 }
 
 async function loadTunnels(silent = false) {
@@ -159,7 +150,7 @@ async function loadTunnels(silent = false) {
         emit('session-expired')
         return
       }
-      listError.value = friendlyError(e)
+      listError.value = mapError(e)
     }
   } finally {
     if (!silent) {
@@ -195,7 +186,7 @@ async function startTunnel(t: cloudflare.Tunnel) {
   } catch (e) {
     const st = await api.auth.getState()
     if (!st.authenticated) { emit('session-expired'); return }
-    const msg = friendlyError(e).msg
+    const msg = friendlyError(e)
     showToast(msg, 'error')
     pushOp(`启动隧道 ${t.name} 失败：${msg}`, 'fail')
   } finally {
@@ -213,7 +204,7 @@ async function stopTunnel(t: cloudflare.Tunnel) {
     showToast(`已停止 ${t.name}`, 'success')
     pushOp(`停止隧道 ${t.name}（${t.id.slice(0,8)}）`, 'ok')
   } catch (e) {
-    const msg = friendlyError(e).msg
+    const msg = friendlyError(e)
     showToast(msg, 'error')
     pushOp(`停止隧道 ${t.name} 失败：${msg}`, 'fail')
   } finally {

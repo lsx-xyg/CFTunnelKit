@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
 import { api, type cloudflare } from '@/api'
+import { friendlyError } from '@/utils/error'
 
 // Create dialog (issue #6): name validation → CreateTunnel → immediate
 // run-token display with copy. A token fetch failure never blocks the
@@ -43,7 +44,7 @@ async function submit() {
     phase.value = 'token'
     emit('created')
   } catch (e) {
-    error.value = String(e)
+    error.value = friendlyError(e)
   } finally {
     busy.value = false
   }
