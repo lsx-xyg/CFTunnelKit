@@ -444,6 +444,8 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       <!-- tunnel list -->
       <div v-if="tunnels.length > 0" class="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
         <div class="flex items-center justify-end border-b border-slate-100 px-4 py-1.5">
+          <div class="flex items-center gap-1.5">
+          <span class="text-xs text-slate-400">轮询</span>
           <select v-model.number="pollInterval" class="rounded border border-slate-200 px-1.5 py-0.5 text-xs" @change="restartPoll" title="轮询间隔">
             <option :value="5">5s</option>
             <option :value="15">15s</option>
@@ -451,6 +453,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
             <option :value="60">60s</option>
             <option :value="0">关闭</option>
           </select>
+        </div>
         </div>
         <table class="min-w-full divide-y divide-slate-200 text-xs">
           <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
