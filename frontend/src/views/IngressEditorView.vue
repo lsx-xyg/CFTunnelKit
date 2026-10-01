@@ -7,7 +7,17 @@ import type { cloudflare } from '../../wailsjs/go/models'
 // The catch-all 404 rule is maintained invisibly by the backend on save
 // (PutIngressConfig appends it); GET strips it, so the user never sees it.
 const props = defineProps<{ tunnelId: string; tunnelName: string }>()
-const emit = defineEmits<{ (e: 'back'): void }>()
+const emit = defineEmits<{ (e: 'back'): void; (e: 'toggle-log'): void }>()
+
+function onKey(e: KeyboardEvent) {
+  if ((e.code === 'Backquote' || e.key === '`') && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault()
+    emit('toggle-log')
+  }
+}
+onMounted(() => window.addEventListener('keydown', onKey, true))
+import { onUnmounted } from 'vue'
+onUnmounted(() => window.removeEventListener('keydown', onKey, true))
 
 interface Rule extends cloudflare.IngressRule { locked?: boolean }
 const rules = ref<Rule[]>([])

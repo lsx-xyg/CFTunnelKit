@@ -521,6 +521,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           :tunnel-id="ingressTunnelId"
           :tunnel-name="ingressTunnelName"
           @back="ingressTunnelId = null"
+          @toggle-log="emit('toggle-log')"
         />
       </div>
     </Transition>
