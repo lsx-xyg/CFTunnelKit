@@ -33,7 +33,7 @@ const retrying = ref(false)
 const loading = ref(false)
 const pollInterval = ref(15)
 const tunnels = ref<cloudflare.Tunnel[]>([])
-const listError = ref('')
+const listError = ref<{ msg: string; needReauth: boolean } | null>(null)
 const moreOpen = ref(false)
 
 // --- slice 03: process management state ---
@@ -131,16 +131,24 @@ function showToast(msg: string, type: 'success' | 'error' | 'info' = 'info') {
 }
 
 // Maps backend error strings to the issue copy for the inline error state.
-function friendlyError(e: unknown): string {
-  const s = String(e)
-  if (s.includes('权限')) return '权限不足，请检查 Token 权限'
-  return s
+function friendlyError(e: unknown): { msg: string; needReauth: boolean } {
+  const s = String(e).toLowerCase()
+  if (s.includes('权限') || s.includes('403') || s.includes('permission')) {
+    return { msg: '权限不足，请检查 Token 是否包含 Tunnel:Edit / Zone:Read / DNS:Edit 权限', needReauth: false }
+  }
+  if (s.includes('未认证') || s.includes('401') || s.includes('token') || s.includes('unauthorized')) {
+    return { msg: 'Token 已失效或无效，请重新配置', needReauth: true }
+  }
+  if (s.includes('网络') || s.includes('timeout') || s.includes('connection') || s.includes('dial')) {
+    return { msg: '无法连接 Cloudflare API，请检查网络', needReauth: false }
+  }
+  return { msg: String(e), needReauth: false }
 }
 
 async function loadTunnels(silent = false) {
   if (!silent) {
     loading.value = true
-    listError.value = ''
+    listError.value = null
   }
   try {
     tunnels.value = await api.tunnel.list()
@@ -187,7 +195,7 @@ async function startTunnel(t: cloudflare.Tunnel) {
   } catch (e) {
     const st = await api.auth.getState()
     if (!st.authenticated) { emit('session-expired'); return }
-    const msg = friendlyError(e)
+    const msg = friendlyError(e).msg
     showToast(msg, 'error')
     pushOp(`启动隧道 ${t.name} 失败：${msg}`, 'fail')
   } finally {
@@ -205,7 +213,7 @@ async function stopTunnel(t: cloudflare.Tunnel) {
     showToast(`已停止 ${t.name}`, 'success')
     pushOp(`停止隧道 ${t.name}（${t.id.slice(0,8)}）`, 'ok')
   } catch (e) {
-    const msg = friendlyError(e)
+    const msg = friendlyError(e).msg
     showToast(msg, 'error')
     pushOp(`停止隧道 ${t.name} 失败：${msg}`, 'fail')
   } finally {
@@ -393,13 +401,22 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
 
       <!-- list error: stay on page + retry -->
       <div v-else-if="listError" class="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-        <p class="text-sm font-medium text-red-700">{{ listError }}</p>
-        <button
-          class="mt-3 rounded-md bg-red-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
-          @click="retry"
-        >
-          重试
-        </button>
+        <p class="text-sm font-medium text-red-700">{{ listError.msg }}</p>
+        <div class="mt-3 flex items-center justify-center gap-2">
+          <button
+            class="rounded-md bg-red-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
+            @click="retry"
+          >
+            重试
+          </button>
+          <button
+            v-if="listError.needReauth"
+            class="rounded-md border border-red-300 bg-white px-4 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50"
+            @click="emit('session-expired')"
+          >
+            重新配置 Token
+          </button>
+        </div>
       </div>
 
       <!-- empty state: create -->
