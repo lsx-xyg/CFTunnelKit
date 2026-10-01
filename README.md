@@ -9,6 +9,8 @@
 ![Build](https://github.com/lsx-xyg/CFTunnelKit/actions/workflows/release.yml/badge.svg)
 ![Release](https://img.shields.io/github/v/release/lsx-xyg/CFTunnelKit)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
+![Wails](https://img.shields.io/badge/Wails-v2-blue?logo=go)
+![Vue](https://img.shields.io/badge/Vue-3-green?logo=vue.js)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 </div>
@@ -17,24 +19,30 @@
 
 ## 这是什么？
 
-CFTunnelKit 是一个跨平台桌面应用（当前支持 Windows），帮你用图形界面管理 Cloudflare Tunnel：
+CFTunnelKit 是一个 Windows 桌面应用，帮你用图形界面管理 Cloudflare Tunnel（原 Argo Tunnel）：
 
 - 不用敲 `cloudflared` 命令
 - 不用手写 `config.yml`
 - 自动创建 DNS CNAME 记录
 - 关闭窗口后隐藏到托盘，下次打开自动恢复上次运行的隧道
+- 自动下载 cloudflared 二进制，无需手动安装
 
-适合 NAS / Homelab 用户，想把本地服务暴露到公网但不想记命令的人。
+适合 NAS / Homelab 用户、开发者、运维，想把本地服务暴露到公网但不想记命令的人。
+
+**和官方 Dashboard 的区别**：官方 Dashboard 只能管理 Tunnel 本身，Ingress 规则要手写 YAML；CFTunnelKit 可视化编辑规则，自动联动 DNS，桌面端一键启停。
+
+**和命令行 cloudflared 的区别**：不用记参数、不用维护 config.yml、不用自己开终端看日志，图形界面全搞定。
 
 ## 功能
 
 - 🔐 **Token 认证** — 粘贴 Cloudflare API Token，自动校验三项权限
 - 📋 **Tunnel 管理** — 创建、删除、启动、停止、查看运行 Token
-- 🌐 **Ingress 规则** — 可视化编辑 域名 → 本地端口，即时保存
-- 🚀 **DNS 自动联动** — 添加规则时自动创建 CNAME，删除时同步清理
+- 🌐 **Ingress 规则** — 两段式可视化编辑（子域 + Zone 下拉），即时保存
+- 🚀 **DNS 自动联动** — 添加规则时自动创建 CNAME，删除时静默清理
 - 📝 **浮动终端** — `Ctrl+` ` 打开，可拖拽调高度、全屏、搜索、级别筛选
 - 📦 **系统托盘** — 关闭窗口隐藏到托盘，右键开机自启切换
 - 🔄 **自动恢复** — 下次打开自动连接上次运行的隧道
+- 🔔 **检查更新** — 启动时静默检查新版本，红点提示，一键跳转下载
 - 📁 **日志落盘** — app.log / cloudflared.log / operation.log 三个文件自动轮转
 - 🔔 **检查更新** — 启动时静默检查新版本，有更新时"更多"菜单显示红点，手动点击弹窗跳转下载
 
