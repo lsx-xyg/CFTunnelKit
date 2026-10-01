@@ -315,6 +315,12 @@ onMounted(load)
 
         <div v-if="rules.length === 0 && !wholeListErrors.length" class="rounded-2xl border border-dashed border-slate-300 p-8 text-center">
           <p class="text-sm text-slate-500">尚未配置规则（Tunnel 未配置或仅有兜底规则）</p>
+          <button
+            class="mt-4 rounded-md bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+            @click="addRule"
+          >
+            + 添加规则
+          </button>
         </div>
 
         <div class="space-y-2">
