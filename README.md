@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.png" alt="CFTunnelKit" width="120" />
+<img src="docs/logo.png" alt="CFTunnelKit" width="120" />
 
 # CFTunnelKit
 
@@ -11,7 +11,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-[下载](https://github.com/lsx-xyg/CFTunnelKit/releases) · [反馈 Issue](https://github.com/lsx-xyg/CFTunnelKit/issues)
+[下载](https://github.com/lsx-xyg/CFTunnelKit/releases) · [更新日志](https://github.com/lsx-xyg/CFTunnelKit/releases) · [反馈](https://github.com/lsx-xyg/CFTunnelKit/issues)
 
 </div>
 
