@@ -92,6 +92,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ih = service.NewIngressHandler(a.auth, ctx)
 	a.dh = service.NewDNSHandler(a.auth, ctx)
 	a.ph = service.NewProcessHandler(a.auth, a.pm, ctx)
+	a.sys.SetContext(ctx)
 	a.auth.LoadPersisted()
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -252,6 +253,16 @@ func (a *App) WriteOpLog(action, result string) {
 // GetVersion returns the build version.
 func (a *App) GetVersion() string {
 	return a.sys.GetVersion()
+}
+
+// CheckLatestRelease checks GitHub for a newer release.
+func (a *App) CheckLatestRelease() (*service.UpdateInfo, error) {
+	return a.sys.CheckLatestRelease()
+}
+
+// OpenReleasePage opens the release URL in browser.
+func (a *App) OpenReleasePage(url string) {
+	a.sys.OpenReleasePage(url)
 }
 
 func (a *App) addRunning(id string) {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"runtime"
@@ -9,12 +10,17 @@ import (
 	"github.com/lsx-xyg/CFTunnelKit/internal/version"
 )
 
-// SystemHandler owns log-directory and operation-log bindings. It is
-// stateless: applog package functions do the work.
-type SystemHandler struct{}
+// SystemHandler owns log-directory and operation-log bindings.
+type SystemHandler struct {
+	ctx context.Context
+}
 
 func NewSystemHandler() *SystemHandler {
 	return &SystemHandler{}
+}
+
+func (h *SystemHandler) SetContext(ctx context.Context) {
+	h.ctx = ctx
 }
 
 // LogDir returns the absolute path of the directory containing app.log and

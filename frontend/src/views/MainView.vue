@@ -7,6 +7,7 @@ import PermissionBadge from '../components/PermissionBadge.vue'
 import TunnelStatusBadge from '../components/TunnelStatusBadge.vue'
 import CreateTunnelDialog from '../components/CreateTunnelDialog.vue'
 import TunnelDetailDialog from '../components/TunnelDetailDialog.vue'
+import UpdateDialog from '../components/UpdateDialog.vue'
 import IngressEditorView from './IngressEditorView.vue'
 
 interface LogPayload {
@@ -47,6 +48,7 @@ const download = ref<{ active: boolean; phase: string; downloaded: number; total
   total: 0,
 })
 const toast = ref<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null)
+const updateInfo = ref<{ current: string; latest: string; releaseUrl: string } | null>(null)
 let toastTimer: number | undefined
 
 // --- slice 04: create / detail dialogs ---
@@ -125,8 +127,20 @@ function pushLog(p: LogPayload) {
   }
 }
 
-function showToast(msg: string, type: 'success' | 'error' | 'info' = 'info') {
-  toast.value = { msg, type }
+async function checkUpdate() {
+  try {
+    const info = await api.system.checkUpdate()
+    if (info.hasUpdate) {
+      updateInfo.value = { current: info.current, latest: info.latest, releaseUrl: info.releaseUrl }
+    } else {
+      showToast(`已是最新版 ${info.latest || info.current}`, 'success')
+    }
+  } catch (e) {
+    showToast('检查更新失败，请稍后重试', 'error')
+  }
+}
+
+function showToast(msg: string, type: 'success' | 'error' | 'info' = 'info') {  toast.value = { msg, type }
   if (toastTimer) window.clearTimeout(toastTimer)
   toastTimer = window.setTimeout(() => (toast.value = null), 3500)
 }
@@ -338,6 +352,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           <div class="absolute right-0 top-full z-[60] w-48 rounded-xl border border-slate-200 bg-white py-1 shadow-lg opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
             <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors" @click="emit('toggle-log')">终端日志</button>
             <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors" @click="api.system.openLogDir()">打开日志目录</button>
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors" @click="checkUpdate">检查更新</button>
           </div>
         </div>
         <button class="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors" @click="showCreate = true">
@@ -531,6 +546,14 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
       :run-state="runStates[detailTunnelId] ?? 'stopped'"
       @close="detailTunnelId = null"
       @deleted="onDeleted"
+    />
+
+    <UpdateDialog
+      v-if="updateInfo"
+      :current="updateInfo.current"
+      :latest="updateInfo.latest"
+      :release-url="updateInfo.releaseUrl"
+      @close="updateInfo = null"
     />
 
     <!-- slice 05: ingress editor overlay -->
