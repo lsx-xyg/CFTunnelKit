@@ -95,6 +95,8 @@ const dnsCreateChecked = ref(true)
 const dnsRemoveChecked = ref(true)
 const dnsRunning = ref(false)
 const dnsResults = ref<string[]>([])
+const dnsResultsVisible = ref(false)
+let pendingDNSResolve: ((ok: boolean) => void) | null = null
 
 // delete-link prompt when a rule is removed in the editor
 const deletePrompt = ref<string[] | null>(null)
@@ -152,7 +154,25 @@ async function runDNSPrompt() {
 }
 
 function closeDNSResults() {
-  dnsResults.value = []
+  dnsResultsVisible.value = false
+}
+
+function confirmDNSPrompt() {
+  dnsPrompt.value = null
+  pendingDNSResolve?.(true)
+  pendingDNSResolve = null
+}
+
+function skipDNSPrompt() {
+  dnsPrompt.value = null
+  pendingDNSResolve?.(false)
+  pendingDNSResolve = null
+}
+
+function cancelDNSPrompt() {
+  dnsPrompt.value = null
+  pendingDNSResolve?.(false)
+  pendingDNSResolve = null
 }
 
 async function confirmDeleteDNS() {
@@ -262,8 +282,27 @@ async function save() {
       r.hostname = combineHostname(r._zoneId ?? '', r._subdomain ?? '')
     })
     const clean = rules.value.map(({ _id, locked, _zoneId, _subdomain, ...rest }) => rest)
+    const newHosts = hostnamesOf(clean)
+    const create = newHosts.filter((h) => !oldHosts.includes(h))
+    const remove = oldHosts.filter((h) => !newHosts.includes(h))
+
+    // Atomic DNS prompt: ask BEFORE saving. Cancel = don't save at all.
+    if (create.length) {
+      const doDNS = await new Promise<boolean>((resolve) => {
+        dnsPrompt.value = { create, remove: [] }
+        dnsCreateChecked.value = true
+        dnsRemoveChecked.value = false
+        // Resolve when user clicks a choice.
+        pendingDNSResolve = resolve
+      })
+      if (!doDNS) {
+        // User cancelled: don't save.
+        saving.value = false
+        return
+      }
+    }
+
     const got = await api.ingress.save(props.tunnelId, clean)
-    const newHosts = hostnamesOf(got)
     rules.value = (got ?? []).map(r => {
       const split = splitHostname(r.hostname ?? '')
       return { ...r, locked: true, _id: crypto.randomUUID(), _zoneId: split.zoneId, _subdomain: split.subdomain }
@@ -271,18 +310,30 @@ async function save() {
     snapshot = JSON.stringify((got ?? []).map(norm))
     savedHosts = newHosts
     showToast('配置已保存')
-    // issue #6: offer DNS link for added / removed hostnames.
-    // Always prompt (even if zones failed to load) so the user knows.
-    const create = newHosts.filter((h) => !oldHosts.includes(h))
-    const remove = oldHosts.filter((h) => !newHosts.includes(h))
-    if (create.length || remove.length) {
-      dnsPrompt.value = { create, remove }
-      dnsCreateChecked.value = create.length > 0
-      dnsRemoveChecked.value = remove.length > 0
+
+    // If user chose to create DNS, do it now (after save succeeds).
+    if (create.length) {
+      const target = props.tunnelId + '.cfargotunnel.com'
+      dnsResults.value = []
+      for (const h of create) {
+        const z = zoneFor(h)
+        if (!z) { dnsResults.value.push(`${h}: 无匹配 Zone，跳过`); continue }
+        try {
+          const res = await api.dns.ensure(z.id, relName(h, z.name), target)
+          dnsResults.value.push(`${h}: ${res.created ? '已创建 CNAME' : 'CNAME 已存在'}`)
+        } catch (e) {
+          dnsResults.value.push(`${h}: ${friendlyError(e)}`)
+        }
+      }
+      if (dnsResults.value.length) dnsResultsVisible.value = true
     }
-    console.log('[Ingress save] oldHosts=', oldHosts, 'newHosts=', newHosts, 'create=', create, 'remove=', remove, 'zones=', zones.value)
+    // Removed hostnames: clean up DNS (best effort, no prompt).
+    for (const h of remove) {
+      const z = zoneFor(h)
+      if (!z) continue
+      try { await api.dns.remove(z.id, relName(h, z.name)) } catch { /* best effort */ }
+    }
   } catch (e) {
-    // PUT failed or read-back mismatch → keep user input, show the error
     saveError.value = friendlyError(e)
   } finally {
     saving.value = false
@@ -381,7 +432,7 @@ onMounted(load)
                 <input
                   v-if="r._zoneId !== '__custom__'"
                   v-model="r._subdomain"
-                  placeholder="子域，如 nas（留空=根域名，*=通配符）"
+                  :placeholder="r._zoneId ? '子域（留空=根域名，*=通配符）' : '子域，如 nas'"
                   :disabled="r.locked"
                   class="w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:border-blue-500 focus:outline-none"
                   @input="updateHostname(r)"
@@ -394,9 +445,6 @@ onMounted(load)
                   class="w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed focus:border-blue-500 focus:outline-none"
                   @input="updateHostname(r)"
                 />
-                <p v-if="r._subdomain && r._zoneId !== '__custom__'" class="mt-0.5 text-xs text-slate-400 transition-colors">
-                  → {{ combineHostname(r._zoneId ?? '', r._subdomain ?? '') }}
-                </p>
               </div>
               <select
                 v-if="r._zoneId !== '__custom__'"
@@ -487,43 +535,34 @@ onMounted(load)
     <Teleport to="body">
     <div v-if="dnsPrompt" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
       <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-        <h2 class="text-base font-bold text-slate-900">DNS 联动</h2>
-        <p class="mt-1 text-sm text-slate-500">是否同步处理以下域名的 DNS 记录？</p>
+        <h2 class="text-base font-bold text-slate-900">发现新域名</h2>
+        <p class="mt-1 text-sm text-slate-500">是否同时创建 DNS CNAME 记录？</p>
 
         <div v-if="dnsPrompt.create.length" class="mt-4 rounded-lg border border-slate-200 p-3">
-          <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
-            <input v-model="dnsCreateChecked" type="checkbox" class="accent-blue-600" />
-            创建 CNAME（指向 {{ tunnelId }}.cfargotunnel.com）
-          </label>
+          <p class="text-xs text-slate-500">将创建以下 CNAME（指向 {{ tunnelId }}.cfargotunnel.com）：</p>
           <ul class="mt-1.5 space-y-0.5">
-            <li v-for="h in dnsPrompt.create" :key="'c' + h" class="pl-6 font-mono text-xs text-slate-600">{{ h }}</li>
-          </ul>
-        </div>
-
-        <div v-if="dnsPrompt.remove.length" class="mt-3 rounded-lg border border-slate-200 p-3">
-          <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
-            <input v-model="dnsRemoveChecked" type="checkbox" class="accent-blue-600" />
-            删除 DNS 记录
-          </label>
-          <ul class="mt-1.5 space-y-0.5">
-            <li v-for="h in dnsPrompt.remove" :key="'r' + h" class="pl-6 font-mono text-xs text-slate-600">{{ h }}</li>
+            <li v-for="h in dnsPrompt.create" :key="'c' + h" class="font-mono text-xs text-slate-700">{{ h }}</li>
           </ul>
         </div>
 
         <div class="mt-5 flex justify-end gap-2">
           <button
-            :disabled="dnsRunning"
-            class="rounded-md border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            @click="dnsPrompt = null"
+            class="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+            @click="cancelDNSPrompt"
           >
             取消
           </button>
           <button
-            :disabled="dnsRunning"
-            class="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
-            @click="runDNSPrompt"
+            class="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+            @click="skipDNSPrompt"
           >
-            {{ dnsRunning ? '处理中…' : '确认' }}
+            只保存规则
+          </button>
+          <button
+            class="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
+            @click="confirmDNSPrompt"
+          >
+            创建并保存
           </button>
         </div>
       </div>
@@ -532,7 +571,7 @@ onMounted(load)
 
     <!-- DNS operation results -->
     <Teleport to="body">
-    <div v-if="dnsResults.length" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
+    <div v-if="dnsResultsVisible && dnsResults.length" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
       <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
         <h2 class="text-base font-bold text-slate-900">DNS 操作结果</h2>
         <ul class="mt-3 max-h-64 space-y-1 overflow-y-auto">
