@@ -4,16 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"time"
 
-	"github.com/lsx-xyg/CFTunnelKit/internal/applog"
 	"github.com/lsx-xyg/CFTunnelKit/internal/auth"
 	"github.com/lsx-xyg/CFTunnelKit/internal/cloudflare"
 	"github.com/lsx-xyg/CFTunnelKit/internal/config"
 	"github.com/lsx-xyg/CFTunnelKit/internal/process"
+	"github.com/lsx-xyg/CFTunnelKit/internal/service"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -24,6 +22,7 @@ type App struct {
 	ctx  context.Context
 	auth *auth.Service
 	pm   process.ProcessManager
+	sys  *service.SystemHandler
 }
 
 // NewApp creates the App with a config store and the process manager at the
@@ -46,6 +45,7 @@ func NewApp() *App {
 			wailsruntime.EventsEmit(a.ctx, event, payload)
 		}
 	})
+	a.sys = service.NewSystemHandler()
 	if err := a.initRollingLog(); err != nil {
 		// Non-fatal: log persistence is best-effort (slice 07b).
 		fmt.Printf("warning: rolling log unavailable: %v\n", err)
@@ -234,7 +234,7 @@ func (a *App) DeleteDNSByName(zoneID, name string) (bool, error) {
 // LogDir returns the absolute path of the directory containing app.log and
 // cloudflared.log, so the user can open it and send logs for debugging.
 func (a *App) LogDir() string {
-	return applog.Dir()
+	return a.sys.LogDir()
 }
 
 // HideWindow hides the main window (tray behavior)
@@ -250,24 +250,12 @@ func (a *App) ShowWindow() {
 
 // OpenLogDir opens the logs folder in the system file manager.
 func (a *App) OpenLogDir() {
-	d := applog.Dir()
-	_ = os.MkdirAll(d, 0o700)
-	// runtime.BrowserOpenURL rejects file:// scheme on Windows; use OS-native
-	// command instead.
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("explorer", d)
-	} else if runtime.GOOS == "darwin" {
-		cmd = exec.Command("open", d)
-	} else {
-		cmd = exec.Command("xdg-open", d)
-	}
-	_ = cmd.Start()
+	a.sys.OpenLogDir()
 }
 
 // WriteOpLog appends an operation record to operation.log.
 func (a *App) WriteOpLog(action, result string) {
-	applog.OpLog(action, result)
+	a.sys.WriteOpLog(action, result)
 }
 
 func (a *App) addRunning(id string) {
