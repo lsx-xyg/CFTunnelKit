@@ -182,7 +182,7 @@ async function load() {
     const [rs, zs] = await Promise.all([GetIngressConfig(props.tunnelId), ListZones()])
     rules.value = (rs ?? []).map(r => ({ ...r, locked: true }))
     zones.value = zs
-    snapshot = JSON.stringify(rs.map(norm))
+    snapshot = JSON.stringify((rs ?? []).map(norm))
     savedHosts = hostnamesOf(rs)
   } catch (e) {
     loadError.value = String(e)
@@ -224,8 +224,8 @@ async function save() {
     const oldHosts = savedHosts
     const got = await SaveIngressConfig(props.tunnelId, rules.value)
     const newHosts = hostnamesOf(got)
-    rules.value = got.map(r => ({ ...r, locked: true }))
-    snapshot = JSON.stringify(got.map(norm))
+    rules.value = (got ?? []).map(r => ({ ...r, locked: true }))
+    snapshot = JSON.stringify((got ?? []).map(norm))
     savedHosts = newHosts
     showToast('配置已保存')
     // issue #6: offer DNS link for added / removed hostnames.
