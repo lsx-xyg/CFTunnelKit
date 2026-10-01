@@ -479,7 +479,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
                   class="inline-flex min-w-[4rem] items-center justify-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1"
                   :class="runStates[t.id] === 'running' ? 'bg-green-100 text-green-700 ring-green-200' : runStates[t.id] === 'error' ? 'bg-red-100 text-red-700 ring-red-200' : 'bg-slate-200 text-slate-600 ring-slate-300'"
                 >
-                  {{ runStates[t.id] === 'running' ? '正常' : runStates[t.id] === 'error' ? '异常' : '断开' }}
+                  {{ runStates[t.id] === 'running' ? '运行中' : runStates[t.id] === 'error' ? '异常' : '已停止' }}
                 </span>
               </td>
               <td class="px-4 py-2.5 font-mono text-xs text-slate-500">{{ t.id }}</td>
