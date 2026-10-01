@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/lsx-xyg/CFTunnelKit/internal/applog"
 	"github.com/lsx-xyg/CFTunnelKit/internal/auth"
@@ -84,6 +85,10 @@ func (a *App) initRollingLog() error {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.auth.LoadPersisted()
+	go func() {
+		time.Sleep(1 * time.Second)
+		a.RestoreRunning()
+	}()
 }
 
 // shutdown is wired to Wails OnShutdown: every running cloudflared process
@@ -140,12 +145,20 @@ func (a *App) StartTunnel(tunnelID string) error {
 	if err != nil {
 		return err
 	}
-	return a.pm.Start(a.ctxOrBackground(), tunnelID, tok)
+	if err := a.pm.Start(a.ctxOrBackground(), tunnelID, tok); err != nil {
+		return err
+	}
+	a.addRunning(tunnelID)
+	return nil
 }
 
 // StopTunnel gracefully stops one tunnel process.
 func (a *App) StopTunnel(tunnelID string) error {
-	return a.pm.Stop(tunnelID)
+	err := a.pm.Stop(tunnelID)
+	if err == nil {
+		a.removeRunning(tunnelID)
+	}
+	return err
 }
 
 // StopAllTunnels stops every running tunnel (frontend "全部停止" / shutdown).
@@ -334,4 +347,33 @@ func (a *App) ReadServiceLog(lines int) (string, error) {
 		all = all[len(all)-lines:]
 	}
 	return strings.Join(all, "\n"), nil
+}
+
+func (a *App) addRunning(id string) {
+	cfg := a.auth.Config()
+	for _, x := range cfg.LastRunning {
+		if x == id { return }
+	}
+	cfg.LastRunning = append(cfg.LastRunning, id)
+	a.auth.Save(cfg)
+}
+
+func (a *App) removeRunning(id string) {
+	cfg := a.auth.Config()
+	out := cfg.LastRunning[:0]
+	for _, x := range cfg.LastRunning {
+		if x != id { out = append(out, x) }
+	}
+	cfg.LastRunning = out
+	a.auth.Save(cfg)
+}
+
+// RestoreRunning starts tunnels that were running on last exit.
+func (a *App) RestoreRunning() {
+	cfg := a.auth.Config()
+	for _, id := range cfg.LastRunning {
+		tok, err := a.auth.GetTunnelToken(a.ctxOrBackground(), id)
+		if err != nil { continue }
+		_ = a.pm.Start(a.ctxOrBackground(), id, tok)
+	}
 }

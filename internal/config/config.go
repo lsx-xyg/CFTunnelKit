@@ -39,6 +39,7 @@ type Config struct {
 	FirstZoneID string      `json:"first_zone_id"`
 	// VerifiedAt is the RFC3339 timestamp of the last successful verification.
 	VerifiedAt string `json:"verified_at"`
+	LastRunning []string `json:"last_running,omitempty"`
 }
 
 // Store reads and writes Config to a single file.

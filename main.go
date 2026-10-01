@@ -2,8 +2,10 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	kservice "github.com/kardianos/service"
@@ -102,12 +104,18 @@ func onReady(app *App) func() {
 		systray.SetTooltip("CFTunnelKit — Cloudflare Tunnel 管理器")
 
 		mShow := systray.AddMenuItem("显示主窗口", "Show window")
+		mAuto := systray.AddMenuItemCheckbox("开机自启", "Auto start", isAutoStart())
 		systray.AddSeparator()
 		mQuit := systray.AddMenuItem("退出", "Quit")
 
 		mShow.Click(func() {
 			wailsruntime.WindowShow(app.ctx)
 			wailsruntime.WindowUnminimise(app.ctx)
+		})
+		mAuto.Click(func() {
+			enabled := !mAuto.Checked()
+			setAutoStart(enabled)
+			if enabled { mAuto.Check() } else { mAuto.Uncheck() }
 		})
 		mQuit.Click(func() {
 			systray.Quit()
@@ -122,3 +130,28 @@ func onReady(app *App) func() {
 }
 
 func onExit() {}
+
+func startupDir() string {
+	appdata := os.Getenv("APPDATA")
+	return filepath.Join(appdata, "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+}
+
+func shortcutPath() string {
+	return filepath.Join(startupDir(), "CFTunnelKit.lnk")
+}
+
+func isAutoStart() bool {
+	_, err := os.Stat(shortcutPath())
+	return err == nil
+}
+
+func setAutoStart(enable bool) {
+	if !enable {
+		_ = os.Remove(shortcutPath())
+		return
+	}
+	exe, _ := os.Executable()
+	// create .lnk via PowerShell
+	ps := fmt.Sprintf(`$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%s'); $s.TargetPath = '%s'; $s.Save()`, shortcutPath(), exe)
+	_ = exec.Command("powershell", "-Command", ps).Run()
+}
