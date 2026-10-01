@@ -85,8 +85,8 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40" @click.self="phase === 'confirm-delete' ? null : emit('close')">
-    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+  <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 animate-fade-in" @click.self="phase === 'confirm-delete' ? null : emit('close')">
+    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl animate-zoom-in">
       <template v-if="phase === 'detail'">
         <div class="flex items-start justify-between">
           <div>

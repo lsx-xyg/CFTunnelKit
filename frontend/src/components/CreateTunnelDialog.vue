@@ -62,8 +62,8 @@ async function copyToken() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40" @click.self="emit('close')">
-    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+  <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 animate-fade-in" @click.self="emit('close')">
+    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl animate-zoom-in">
       <template v-if="phase === 'form'">
         <h2 class="text-lg font-bold text-slate-900">创建 Tunnel</h2>
         <p class="mt-1 text-xs text-slate-400">创建远程管理型 Tunnel（config_src: cloudflare）</p>

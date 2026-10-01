@@ -467,7 +467,6 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
             <tr>
               <th class="px-4 py-2.5 font-medium">名称</th>
               <th class="px-4 py-2.5 font-medium">状态</th>
-              <th class="px-4 py-2.5 font-medium">运行</th>
               <th class="px-4 py-2.5 font-medium">Tunnel ID</th>
               <th class="px-4 py-2.5 font-medium">创建时间</th>
               <th class="px-4 py-2.5 font-medium">操作</th>
@@ -482,18 +481,6 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
                   :class="runStates[t.id] === 'running' ? 'bg-green-100 text-green-700 ring-green-200' : runStates[t.id] === 'error' ? 'bg-red-100 text-red-700 ring-red-200' : 'bg-slate-200 text-slate-600 ring-slate-300'"
                 >
                   {{ runStates[t.id] === 'running' ? '运行中' : runStates[t.id] === 'error' ? '异常' : '未运行' }}
-                </span>
-              </td>
-              <td class="px-4 py-2.5">
-                <span
-                  class="inline-flex items-center gap-1.5 text-xs"
-                  :class="runStates[t.id] === 'running' ? 'text-green-700' : runStates[t.id] === 'error' ? 'text-red-700' : 'text-slate-400'"
-                >
-                  <span
-                    class="inline-block h-2 w-2 rounded-full"
-                    :class="runStates[t.id] === 'running' ? 'bg-green-500' : runStates[t.id] === 'error' ? 'bg-red-500' : 'bg-slate-300'"
-                  />
-                  {{ runStates[t.id] === 'running' ? '运行中' : runStates[t.id] === 'error' ? '异常退出' : '未运行' }}
                 </span>
               </td>
               <td class="px-4 py-2.5 font-mono text-xs text-slate-500">{{ t.id }}</td>
