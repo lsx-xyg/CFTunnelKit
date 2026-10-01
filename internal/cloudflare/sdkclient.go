@@ -2,7 +2,6 @@ package cloudflare
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	cf "github.com/cloudflare/cloudflare-go/v7"
@@ -10,26 +9,27 @@ import (
 	"github.com/cloudflare/cloudflare-go/v7/zero_trust"
 )
 
+// sdkClient implements CFClient using cloudflare-go v7 SDK where available,
+// falling back to the hand-written HTTP client for endpoints the SDK doesn't
+// cover well.
 type sdkClient struct {
-	api *cf.Client
+	sdk      *cf.Client
+	fallback CFClient // hand-written client for VerifyToken/DNS/etc
 }
 
-func NewSDKClient(token string) CFClient {
+func NewSDKClient(token string, fallback CFClient) CFClient {
 	hc := &http.Client{Transport: newTransport()}
 	api := cf.NewClient(
 		option.WithAPIToken(token),
 		option.WithHTTPClient(hc),
 	)
-	return &sdkClient{api: api}
+	return &sdkClient{sdk: api, fallback: fallback}
 }
 
-// --- Tunnel CRUD ---
+// --- Tunnel CRUD (SDK) ---
 
 func (c *sdkClient) ListTunnels(ctx context.Context, accountID string, page, perPage int) ([]Tunnel, error) {
-	if accountID == "" {
-		return nil, &APIError{Kind: KindAuth, Message: "账户未解析"}
-	}
-	resp, err := c.api.ZeroTrust.Tunnels.Cloudflared.List(ctx, zero_trust.TunnelCloudflaredListParams{
+	resp, err := c.sdk.ZeroTrust.Tunnels.Cloudflared.List(ctx, zero_trust.TunnelCloudflaredListParams{
 		AccountID: cf.F(accountID),
 		Page:      cf.F(float64(page)),
 		PerPage:   cf.F(float64(perPage)),
@@ -45,7 +45,7 @@ func (c *sdkClient) ListTunnels(ctx context.Context, accountID string, page, per
 }
 
 func (c *sdkClient) CreateTunnel(ctx context.Context, accountID, name string) (Tunnel, error) {
-	t, err := c.api.ZeroTrust.Tunnels.Cloudflared.New(ctx, zero_trust.TunnelCloudflaredNewParams{
+	t, err := c.sdk.ZeroTrust.Tunnels.Cloudflared.New(ctx, zero_trust.TunnelCloudflaredNewParams{
 		AccountID: cf.F(accountID),
 		Name:      cf.F(name),
 	})
@@ -56,14 +56,14 @@ func (c *sdkClient) CreateTunnel(ctx context.Context, accountID, name string) (T
 }
 
 func (c *sdkClient) DeleteTunnel(ctx context.Context, accountID, tunnelID string) error {
-	_, err := c.api.ZeroTrust.Tunnels.Cloudflared.Delete(ctx, tunnelID, zero_trust.TunnelCloudflaredDeleteParams{
+	_, err := c.sdk.ZeroTrust.Tunnels.Cloudflared.Delete(ctx, tunnelID, zero_trust.TunnelCloudflaredDeleteParams{
 		AccountID: cf.F(accountID),
 	})
 	return err
 }
 
 func (c *sdkClient) GetTunnelDetail(ctx context.Context, accountID, tunnelID string) (TunnelDetail, error) {
-	t, err := c.api.ZeroTrust.Tunnels.Cloudflared.Get(ctx, tunnelID, zero_trust.TunnelCloudflaredGetParams{
+	t, err := c.sdk.ZeroTrust.Tunnels.Cloudflared.Get(ctx, tunnelID, zero_trust.TunnelCloudflaredGetParams{
 		AccountID: cf.F(accountID),
 	})
 	if err != nil {
@@ -72,7 +72,7 @@ func (c *sdkClient) GetTunnelDetail(ctx context.Context, accountID, tunnelID str
 	return TunnelDetail{ID: t.ID, Name: t.Name}, nil
 }
 
-// --- Ingress config ---
+// --- Ingress config (SDK) ---
 
 func (c *sdkClient) GetIngressConfig(ctx context.Context, accountID, tunnelID string) ([]IngressRule, error) {
 	svc := zero_trust.NewTunnelCloudflaredConfigurationService()
@@ -107,30 +107,28 @@ func (c *sdkClient) PutIngressConfig(ctx context.Context, accountID, tunnelID st
 	return err
 }
 
-// --- DNS (not yet migrated, hand-written client used) ---
-
-func (c *sdkClient) ListZones(ctx context.Context, accountID string) ([]Zone, error) {
-	return nil, fmt.Errorf("not migrated")
-}
-
-func (c *sdkClient) ListDNSRecords(ctx context.Context, zoneID string) ([]DNSRecord, error) {
-	return nil, fmt.Errorf("not migrated")
-}
-
-func (c *sdkClient) CreateCNAMERecord(ctx context.Context, zoneID, name, target string) (DNSRecord, error) {
-	return DNSRecord{}, fmt.Errorf("not migrated")
-}
-
-func (c *sdkClient) DeleteDNSRecord(ctx context.Context, zoneID, recordID string) error {
-	return fmt.Errorf("not migrated")
-}
-
-// --- Keep hand-written ---
+// --- Fallback to hand-written ---
 
 func (c *sdkClient) VerifyToken(ctx context.Context) (TokenInfo, error) {
-	return TokenInfo{}, fmt.Errorf("not migrated")
+	return c.fallback.VerifyToken(ctx)
 }
 
 func (c *sdkClient) GetTunnelToken(ctx context.Context, accountID, tunnelID string) (string, error) {
-	return "", fmt.Errorf("not migrated")
+	return c.fallback.GetTunnelToken(ctx, accountID, tunnelID)
+}
+
+func (c *sdkClient) ListZones(ctx context.Context, accountID string) ([]Zone, error) {
+	return c.fallback.ListZones(ctx, accountID)
+}
+
+func (c *sdkClient) ListDNSRecords(ctx context.Context, zoneID string) ([]DNSRecord, error) {
+	return c.fallback.ListDNSRecords(ctx, zoneID)
+}
+
+func (c *sdkClient) CreateCNAMERecord(ctx context.Context, zoneID, name, target string) (DNSRecord, error) {
+	return c.fallback.CreateCNAMERecord(ctx, zoneID, name, target)
+}
+
+func (c *sdkClient) DeleteDNSRecord(ctx context.Context, zoneID, recordID string) error {
+	return c.fallback.DeleteDNSRecord(ctx, zoneID, recordID)
 }

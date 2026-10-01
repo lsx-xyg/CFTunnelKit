@@ -86,12 +86,13 @@ func New(opts Options) CFClient {
 	if ua == "" {
 		ua = defaultUA
 	}
-	return &client{
+	fallback := &client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   strings.TrimSpace(opts.Token),
 		hc:      &http.Client{Timeout: timeout, Transport: newTransport()},
 		ua:      ua,
 	}
+	return NewSDKClient(opts.Token, fallback)
 }
 
 // cfError mirrors a single entry of the Cloudflare errors array.
