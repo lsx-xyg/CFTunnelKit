@@ -343,12 +343,14 @@ async function save() {
       if (failed) showToast(`DNS 创建完成：${ok} 成功，${failed} 失败`)
       else showToast(`DNS 已创建（${ok} 条）`)
     }
-    // Removed hostnames: clean up DNS (best effort, no prompt).
+    // Removed hostnames: clean up DNS silently (best effort).
+    let removedDns = 0
     for (const h of remove) {
       const z = zoneFor(h)
       if (!z) continue
-      try { await api.dns.remove(z.id, relName(h, z.name)) } catch { /* best effort */ }
+      try { await api.dns.remove(z.id, relName(h, z.name)); removedDns++ } catch { /* best effort */ }
     }
+    if (removedDns > 0) showToast(`已清理 ${removedDns} 条 DNS 记录`)
   } catch (e) {
     saveError.value = friendlyError(e)
   } finally {
