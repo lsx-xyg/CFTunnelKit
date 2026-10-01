@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
-import { VerifyAndSaveToken } from '../../wailsjs/go/main/App'
-import type { cloudflare } from '../../wailsjs/go/models'
+import { api, type cloudflare } from '@/api'
 import PermissionBadge from '../components/PermissionBadge.vue'
 
 const props = defineProps<{ initialMessage: string }>()
@@ -33,7 +32,7 @@ async function verify() {
   warnings.value = []
   permissions.value = null
   try {
-    const info = await VerifyAndSaveToken(token.value.trim())
+    const info = await api.auth.verify(token.value.trim())
     warnings.value = info.warnings ?? []
     permissions.value = info.permissions
     emit('verified')

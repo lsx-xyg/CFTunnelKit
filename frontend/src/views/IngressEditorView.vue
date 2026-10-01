@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue'
-import { DeleteDNSByName, EnsureCNAME, GetIngressConfig, ListZones, SaveIngressConfig } from '../../wailsjs/go/main/App'
-import type { cloudflare } from '../../wailsjs/go/models'
+import { api, type cloudflare } from '@/api'
 
 // Ingress editor (issue #5): visual editing of 域名 → 本地端口 rules.
 // The catch-all 404 rule is maintained invisibly by the backend on save
@@ -94,7 +93,7 @@ async function runDNSPrompt() {
           continue
         }
         try {
-          const res = await EnsureCNAME(z.id, relName(h, z.name), target)
+          const res = await api.dns.ensure(z.id, relName(h, z.name), target)
           dnsResults.value.push(`${h}: ${res.created ? '已创建 CNAME' : 'CNAME 已存在（指向当前 Tunnel）'}`)
         } catch (e) {
           dnsResults.value.push(`${h}: ${String(e)}`)
@@ -106,7 +105,7 @@ async function runDNSPrompt() {
         const z = zoneFor(h)
         if (!z) continue
         try {
-          await DeleteDNSByName(z.id, relName(h, z.name))
+          await api.dns.remove(z.id, relName(h, z.name))
           dnsResults.value.push(`${h}: DNS 记录已删除`)
         } catch (e) {
           dnsResults.value.push(`${h}: ${String(e)}（请手动处理）`)
@@ -133,7 +132,7 @@ async function confirmDeleteDNS() {
     const z = zoneFor(h)
     if (!z) continue
     try {
-      await DeleteDNSByName(z.id, relName(h, z.name))
+      await api.dns.remove(z.id, relName(h, z.name))
     } catch {
       failed.push(h)
     }
@@ -179,7 +178,7 @@ async function load() {
   loadError.value = ''
   const minDelay = new Promise((r) => setTimeout(r, 600))
   try {
-    const [rs, zs] = await Promise.all([GetIngressConfig(props.tunnelId), ListZones()])
+    const [rs, zs] = await Promise.all([api.ingress.get(props.tunnelId), api.dns.zones()])
     rules.value = (rs ?? []).map(r => ({ ...r, locked: true }))
     zones.value = zs
     snapshot = JSON.stringify((rs ?? []).map(norm))
@@ -222,7 +221,7 @@ async function save() {
   saveError.value = ''
   try {
     const oldHosts = savedHosts
-    const got = await SaveIngressConfig(props.tunnelId, rules.value)
+    const got = await api.ingress.save(props.tunnelId, rules.value)
     const newHosts = hostnamesOf(got)
     rules.value = (got ?? []).map(r => ({ ...r, locked: true }))
     snapshot = JSON.stringify((got ?? []).map(norm))

@@ -1,8 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, onUnmounted, ref, computed } from 'vue'
-import { GetAuthState, RetryVerify } from '../wailsjs/go/main/App'
+import { api, auth } from '@/api'
 import { EventsOn, EventsOff, EventsEmit } from '../wailsjs/runtime/runtime'
-import { auth } from '../wailsjs/go/models'
 import AuthView from './views/AuthView.vue'
 import MainView from './views/MainView.vue'
 
@@ -81,16 +80,16 @@ function onDragEnd() {
 }
 
 async function refresh() {
-  state.value = await GetAuthState()
+  state.value = await api.auth.getState()
   if (state.value.has_token && !state.value.authenticated && !state.value.offline && !state.value.message) {
-    try { await RetryVerify() } catch (e) { console.error('restore failed', e) }
-    state.value = await GetAuthState()
+    try { await api.auth.retry() } catch (e) { console.error('restore failed', e) }
+    state.value = await api.auth.getState()
   }
   booting.value = false
 }
 
 async function onSessionExpired() {
-  state.value = await GetAuthState()
+  state.value = await api.auth.getState()
   state.value.message = 'Token 已失效，请重新输入'
 }
 

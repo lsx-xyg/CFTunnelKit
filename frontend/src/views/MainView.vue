@@ -1,8 +1,7 @@
 <script lang="ts" setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { GetAuthState, GetRunStates, ListTunnels, OpenLogDir, RetryVerify, StartTunnel, StopTunnel, WriteOpLog } from '../../wailsjs/go/main/App'
+import { api, type auth, type cloudflare } from '@/api'
 import { EventsOn, EventsOff, EventsEmit } from '../../wailsjs/runtime/runtime'
-import type { auth, cloudflare } from '../../wailsjs/go/models'
 import PermissionBadge from '../components/PermissionBadge.vue'
 import TunnelStatusBadge from '../components/TunnelStatusBadge.vue'
 import CreateTunnelDialog from '../components/CreateTunnelDialog.vue'
@@ -70,7 +69,7 @@ const opLogs = ref<OpLog[]>([])
 function pushOp(action: string, result: 'ok' | 'fail') {
   opLogs.value.push({ timestamp: Date.now(), action, result })
   if (opLogs.value.length > 500) opLogs.value.splice(0, opLogs.value.length - 500)
-  WriteOpLog(action, result)
+  api.system.opLog(action, result)
   EventsEmit('app:op', { action, result })
 }
 
@@ -144,10 +143,10 @@ async function loadTunnels(silent = false) {
     listError.value = ''
   }
   try {
-    tunnels.value = await ListTunnels()
+    tunnels.value = await api.tunnel.list()
   } catch (e) {
     if (!silent) {
-      const st = await GetAuthState()
+      const st = await api.auth.getState()
       if (!st.authenticated) {
         emit('session-expired')
         return
@@ -165,7 +164,7 @@ async function loadTunnels(silent = false) {
 async function retry() {
   retrying.value = true
   try {
-    await RetryVerify()
+    await api.auth.retry()
   } catch (e) {
     console.error('retry failed', e)
   } finally {
@@ -179,14 +178,14 @@ async function retry() {
 async function startTunnel(t: cloudflare.Tunnel) {
   busy.value[t.id] = true
   try {
-    await StartTunnel(t.id)
+    await api.tunnel.start(t.id)
     runStates.value[t.id] = 'running'
     const row = tunnels.value.find((x) => x.id === t.id)
     if (row) row.status = 'healthy'
     showToast(`已启动 ${t.name}`, 'success')
     pushOp(`启动隧道 ${t.name}（${t.id.slice(0,8)}）`, 'ok')
   } catch (e) {
-    const st = await GetAuthState()
+    const st = await api.auth.getState()
     if (!st.authenticated) { emit('session-expired'); return }
     const msg = friendlyError(e)
     showToast(msg, 'error')
@@ -199,7 +198,7 @@ async function startTunnel(t: cloudflare.Tunnel) {
 async function stopTunnel(t: cloudflare.Tunnel) {
   busy.value[t.id] = true
   try {
-    await StopTunnel(t.id)
+    await api.tunnel.stop(t.id)
     runStates.value[t.id] = 'stopped'
     const row = tunnels.value.find((x) => x.id === t.id)
     if (row) row.status = 'down'
@@ -269,7 +268,7 @@ function restartPoll() {
 
 onMounted(async () => {
   await loadTunnels()
-  runStates.value = await GetRunStates()
+  runStates.value = await api.tunnel.runStates()
   EventsOn('cloudflared:log', (p: LogPayload) => {
     pushLog({ ...p, tunnel_id: p.tunnel_id ?? '' })
   })
@@ -331,7 +330,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           <button class="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">☰ 更多</button>
           <div class="absolute right-0 top-full z-[60] w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-xl opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
             <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="emit('toggle-log')">终端日志</button>
-            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="OpenLogDir()">打开日志目录</button>
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="api.system.openLogDir()">打开日志目录</button>
           </div>
         </div>
         <button class="rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-shadow" @click="showCreate = true">

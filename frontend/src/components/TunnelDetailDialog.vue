@@ -1,8 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue'
 import { Copy, Check, X } from 'lucide-vue-next'
-import { DeleteTunnel, GetTunnelDetail, GetTunnelToken } from '../../wailsjs/go/main/App'
-import type { cloudflare } from '../../wailsjs/go/models'
+import { api, type cloudflare } from '@/api'
 import TunnelStatusBadge from './TunnelStatusBadge.vue'
 
 // Detail dialog (issue #6): metadata + connection count + run token
@@ -28,14 +27,14 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    detail.value = await GetTunnelDetail(props.tunnelId)
+    detail.value = await api.tunnel.detail(props.tunnelId)
   } catch (e) {
     error.value = String(e)
     loading.value = false
     return
   }
   try {
-    token.value = await GetTunnelToken(props.tunnelId)
+    token.value = await api.tunnel.token(props.tunnelId)
   } catch (e) {
     tokenError.value = 'Token 获取失败' + (String(e).includes('权限') ? '，请检查 Token 权限' : '，请稍后重试')
   }
@@ -67,7 +66,7 @@ async function doDelete() {
   deleteBusy.value = true
   deleteError.value = ''
   try {
-    await DeleteTunnel(props.tunnelId)
+    await api.tunnel.remove(props.tunnelId)
     emit('deleted')
   } catch (e) {
     const msg = String(e)

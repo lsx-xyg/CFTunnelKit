@@ -8,6 +8,7 @@ import {
 } from '../../wailsjs/go/main/App'
 
 export type { cloudflare } from '../../wailsjs/go/models'
+export { auth } from '../../wailsjs/go/models'
 
 export const api = {
   auth: {
