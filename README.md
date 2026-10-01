@@ -123,8 +123,9 @@ git push origin v0.6.0
 
 ## 路线图
 
-- [ ] 后台轮询 Cloudflare tunnel 状态 — [#37](https://github.com/lsx-xyg/CFTunnelKit/issues/37)
-- [ ] 迁移到 cloudflare/cloudflare-go 官方 SDK — [#38](https://github.com/lsx-xyg/CFTunnelKit/issues/38)
+- [x] 后台轮询 Cloudflare tunnel 状态 — [#37](https://github.com/lsx-xyg/CFTunnelKit/issues/37)
+- [x] 迁移到 cloudflare/cloudflare-go 官方 SDK v7 — [#38](https://github.com/lsx-xyg/CFTunnelKit/issues/38)
+- [ ] VerifyToken 迁移到 SDK — [#41](https://github.com/lsx-xyg/CFTunnelKit/issues/41)
 - [ ] Linux / macOS 构建
 - [ ] 代码分层与前端组件重构
 
