@@ -108,8 +108,8 @@ onMounted(load)
             <div class="flex justify-between">
               <dt class="text-slate-500">状态</dt>
               <dd><span class="inline-flex min-w-[4rem] items-center justify-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1"
-                :class="runState === 'running' ? 'bg-green-100 text-green-700 ring-green-200' : runState === 'error' ? 'bg-red-100 text-red-700 ring-red-200' : 'bg-slate-200 text-slate-600 ring-slate-300'">
-                {{ runState === 'running' ? '运行中' : runState === 'error' ? '异常' : '未运行' }}
+                :class="detail.status === 'healthy' || detail.status === 'degraded' ? 'bg-green-100 text-green-700 ring-green-200' : 'bg-slate-200 text-slate-600 ring-slate-300'">
+                {{ detail.status === 'healthy' ? '正常' : detail.status === 'degraded' ? '部分异常' : '断开' }}
               </span></dd>
             </div>
             <div class="flex justify-between">
