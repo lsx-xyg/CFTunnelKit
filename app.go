@@ -25,6 +25,7 @@ type App struct {
 	sys  *service.SystemHandler
 	win  *service.WindowHandler
 	ah   *service.AuthHandler
+	th   *service.TunnelHandler
 }
 
 // NewApp creates the App with a config store and the process manager at the
@@ -84,6 +85,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.win = service.NewWindowHandler(ctx)
 	a.ah = service.NewAuthHandler(a.auth, ctx)
+	a.th = service.NewTunnelHandler(a.auth, ctx)
 	a.auth.LoadPersisted()
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -124,13 +126,9 @@ func (a *App) RetryVerify() (cloudflare.TokenInfo, error) {
 	return a.ah.RetryVerify()
 }
 
-// ListTunnels returns the account's tunnels (page=1, per_page=50).
-// An auth failure clears the persisted config and resets the state, so the
-// frontend can detect the session expiry via GetAuthState and jump to the
-// auth page; permission/network errors keep the state and are rendered
-// inline with a retry button.
+// ListTunnels returns the account's tunnels.
 func (a *App) ListTunnels() ([]cloudflare.Tunnel, error) {
-	return a.auth.ListTunnels(a.ctxOrBackground())
+	return a.th.ListTunnels()
 }
 
 // ---- slice 03: cloudflared process bindings ----
@@ -173,28 +171,24 @@ func (a *App) GetRunStates() map[string]string {
 
 // ---- slice 04: tunnel create / delete / detail bindings ----
 
-// CreateTunnel creates a remotely-managed tunnel (issue #6). The name is
-// validated frontend-side; 409 surfaces as "同名 Tunnel 已存在".
+// CreateTunnel creates a remotely-managed tunnel.
 func (a *App) CreateTunnel(name string) (cloudflare.Tunnel, error) {
-	return a.auth.CreateTunnel(a.ctxOrBackground(), name)
+	return a.th.CreateTunnel(name)
 }
 
-// DeleteTunnel deletes a tunnel. Active-connection errors surface as
-// "该 Tunnel 有活跃连接，请先停止隧道".
+// DeleteTunnel deletes a tunnel.
 func (a *App) DeleteTunnel(tunnelID string) error {
-	return a.auth.DeleteTunnel(a.ctxOrBackground(), tunnelID)
+	return a.th.DeleteTunnel(tunnelID)
 }
 
-// GetTunnelDetail returns one tunnel's full record (metadata + connection
-// count) for the detail dialog.
+// GetTunnelDetail returns one tunnel's full record.
 func (a *App) GetTunnelDetail(tunnelID string) (cloudflare.TunnelDetail, error) {
-	return a.auth.GetTunnelDetail(a.ctxOrBackground(), tunnelID)
+	return a.th.GetTunnelDetail(tunnelID)
 }
 
-// GetTunnelToken returns the run token for a tunnel (create/detail dialogs,
-// issue #6). Token failures never block create.
+// GetTunnelToken returns the run token for a tunnel.
 func (a *App) GetTunnelToken(tunnelID string) (string, error) {
-	return a.auth.GetTunnelToken(a.ctxOrBackground(), tunnelID)
+	return a.th.GetTunnelToken(tunnelID)
 }
 
 // ---- slice 05: ingress editor bindings ----
