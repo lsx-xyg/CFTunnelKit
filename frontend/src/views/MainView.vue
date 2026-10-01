@@ -328,44 +328,36 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
           {{ state.token_info.account_name }}
         </span>
       </div>
-      <div class="flex items-center gap-2">
-        <span
-          v-for="row in permissionRows"
-          :key="row.key"
-          class="inline-flex items-center gap-1 text-xs"
-        >
+      <div class="flex items-center gap-3">
+        <span v-for="row in permissionRows" :key="row.key" class="inline-flex items-center gap-1 text-xs">
           <span class="text-slate-500">{{ row.label }}</span>
           <PermissionBadge :status="state.token_info?.permissions?.[row.key] ?? 'unverified'" />
         </span>
-        <!-- service status -->
-        <span
-          class="ml-2 rounded-full px-2 py-0.5 text-xs"
-          :class="serviceState === 'running' ? 'bg-green-100 text-green-700' : serviceState === 'stopped' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'"
-        >
-          {{ serviceState === 'running' ? '🟢 服务运行中' : serviceState === 'stopped' ? '🟡 服务已停止' : '⚪ 未安装服务' }}
-        </span>
-        <!-- more menu -->
-        <div class="relative">
-          <button
-            class="ml-2 rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-            @click="moreOpen = !moreOpen"
-          >
-            ☰ 更多
-          </button>
-          <div v-if="moreOpen" class="absolute right-0 top-8 z-[60] w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg" @click.self="moreOpen = false">
-            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="moreOpen=false; emit('toggle-log')">终端日志</button>
-            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="moreOpen=false; OpenLogDir()">打开日志目录</button>
-            <div class="my-1 border-t border-slate-100"></div>
-            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="moreOpen=false; toggleService()">
-              {{ serviceState === 'not-installed' ? '安装为系统服务' : serviceState === 'running' ? '停止系统服务' : '启动系统服务' }}
-            </button>
-            <button v-if="serviceState !== 'not-installed'" class="block w-full px-4 py-1.5 text-left text-xs text-red-600 hover:bg-red-50" @click="moreOpen=false; uninstallService()">卸载系统服务</button>
+        <!-- status dot with hover tooltip -->
+        <div class="relative group">
+          <div class="h-2.5 w-2.5 rounded-full cursor-default"
+            :class="serviceState === 'running' ? 'bg-green-500' : serviceState === 'stopped' ? 'bg-amber-500' : 'bg-slate-300'" />
+          <div class="absolute right-0 top-4 z-[60] hidden w-56 rounded-lg border border-slate-200 bg-white p-3 shadow-xl group-hover:block">
+            <p class="text-xs font-semibold text-slate-700 mb-1">系统服务</p>
+            <p class="text-xs text-slate-500">
+              {{ serviceState === 'running' ? '🟢 运行中 — 关闭窗口后隧道继续运行' : serviceState === 'stopped' ? '🟡 已停止' : '⚪ 未安装' }}
+            </p>
           </div>
         </div>
-        <button
-          class="ml-2 rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
-          @click="showCreate = true"
-        >
+        <!-- hover dropdown -->
+        <div class="relative group">
+          <button class="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">☰ 更多</button>
+          <div class="absolute right-0 top-8 z-[60] hidden w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-xl group-hover:block">
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="emit('toggle-log')">终端日志</button>
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="OpenLogDir()">打开日志目录</button>
+            <div class="my-1 border-t border-slate-100"></div>
+            <button class="block w-full px-4 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50" @click="toggleService()">
+              {{ serviceState === 'not-installed' ? '安装为系统服务' : serviceState === 'running' ? '停止系统服务' : '启动系统服务' }}
+            </button>
+            <button v-if="serviceState !== 'not-installed'" class="block w-full px-4 py-1.5 text-left text-xs text-red-600 hover:bg-red-50" @click="uninstallService()">卸载系统服务</button>
+          </div>
+        </div>
+        <button class="rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-shadow" @click="showCreate = true">
           + 创建 Tunnel
         </button>
       </div>
@@ -447,26 +439,26 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
 
       <!-- stats cards -->
       <div v-if="tunnels.length > 0" class="grid grid-cols-4 gap-3 mb-4">
-        <div class="rounded-xl border border-slate-200 bg-white p-3">
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
           <p class="text-xs text-slate-400">总隧道</p>
           <p class="text-xl font-bold text-slate-800">{{ tunnels.length }}</p>
         </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-3">
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
           <p class="text-xs text-slate-400">运行中</p>
           <p class="text-xl font-bold text-green-600">{{ runningCount }}</p>
         </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-3">
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
           <p class="text-xs text-slate-400">已停止</p>
           <p class="text-xl font-bold text-slate-500">{{ stoppedCount }}</p>
         </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-3">
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
           <p class="text-xs text-slate-400">异常</p>
           <p class="text-xl font-bold text-red-500">{{ errorCount }}</p>
         </div>
       </div>
 
       <!-- tunnel list -->
-      <div v-if="tunnels.length > 0" class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div v-if="tunnels.length > 0" class="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
         <table class="min-w-full divide-y divide-slate-200 text-xs">
           <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -479,7 +471,7 @@ const permissionRows: { key: 'tunnel_edit' | 'zone_read' | 'dns_edit'; label: st
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
-            <tr v-for="t in tunnels" :key="t.id" class="hover:bg-slate-50">
+            <tr v-for="t in tunnels" :key="t.id" class="hover:bg-blue-50/50 transition-colors">
               <td class="px-4 py-2.5 font-medium text-slate-900">{{ t.name }}</td>
               <td class="px-4 py-2.5 whitespace-nowrap">
                 <span
