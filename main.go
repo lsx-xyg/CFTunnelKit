@@ -77,6 +77,7 @@ func onReady(app *App) func() {
 		})
 		mQuit.Click(func() {
 			systray.Quit()
+			os.Exit(0)
 		})
 
 		// left-click restores window
