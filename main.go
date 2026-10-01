@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log/slog"
+	"os"
 
 	"github.com/energye/systray"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -11,6 +12,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
 	"github.com/lsx-xyg/CFTunnelKit/internal/applog"
+	"github.com/lsx-xyg/CFTunnelKit/internal/config"
+	"github.com/lsx-xyg/CFTunnelKit/internal/service"
 )
 
 //go:embed all:frontend/dist
@@ -20,6 +23,30 @@ var assets embed.FS
 var trayIcon []byte
 
 func main() {
+	// elevated install/uninstall mode (launched via UAC)
+	if len(os.Args) > 1 {
+		home, _ := os.UserHomeDir()
+		cfgDir := home
+		if p, err := config.DefaultPath(); err == nil {
+			cfgDir = p
+		}
+		mgr := service.NewManager(cfgDir)
+		switch os.Args[1] {
+		case "--install-service-elevated":
+			err := mgr.Install(service.Config{})
+			if err != nil {
+				slog.Error("elevated install failed", "err", err)
+			}
+			return
+		case "--uninstall-service-elevated":
+			err := mgr.Uninstall()
+			if err != nil {
+				slog.Error("elevated uninstall failed", "err", err)
+			}
+			return
+		}
+	}
+
 	if _, err := applog.Init(); err != nil {
 		println("warn: applog init failed:", err.Error())
 	}

@@ -268,9 +268,21 @@ func (a *App) GetServiceStatus() (string, error) {
 // InstallService installs the helper as a system service.
 func (a *App) InstallService() error {
 	err := a.svc.Install(service.Config{})
+	if err != nil && runtime.GOOS == "windows" {
+		// try elevating via UAC: re-launch self with elevated flag
+		exe, _ := os.Executable()
+		ps := fmt.Sprintf("Start-Process -FilePath '%s' -ArgumentList '--install-service-elevated' -Verb RunAs -Wait", exe)
+		cmd := exec.Command("powershell", "-Command", ps)
+		if runErr := cmd.Run(); runErr != nil {
+			applog.OpLog("install-service", "elevated failed: "+runErr.Error())
+			return fmt.Errorf("安装服务失败：%w", err)
+		}
+		applog.OpLog("install-service", "ok (elevated)")
+		return nil
+	}
 	if err != nil {
 		applog.OpLog("install-service", "failed: "+err.Error())
-		return fmt.Errorf("安装服务失败（需要管理员权限）：%w。请右键 CFTunnelKit → 以管理员身份运行，再试一次", err)
+		return fmt.Errorf("安装服务失败：%w", err)
 	}
 	applog.OpLog("install-service", "ok")
 	return nil
@@ -279,9 +291,20 @@ func (a *App) InstallService() error {
 // UninstallService removes the system service.
 func (a *App) UninstallService() error {
 	err := a.svc.Uninstall()
+	if err != nil && runtime.GOOS == "windows" {
+		exe, _ := os.Executable()
+		ps := fmt.Sprintf("Start-Process -FilePath '%s' -ArgumentList '--uninstall-service-elevated' -Verb RunAs -Wait", exe)
+		cmd := exec.Command("powershell", "-Command", ps)
+		if runErr := cmd.Run(); runErr != nil {
+			applog.OpLog("uninstall-service", "elevated failed: "+runErr.Error())
+			return fmt.Errorf("卸载服务失败：%w", err)
+		}
+		applog.OpLog("uninstall-service", "ok (elevated)")
+		return nil
+	}
 	if err != nil {
 		applog.OpLog("uninstall-service", "failed: "+err.Error())
-		return fmt.Errorf("卸载服务失败（需要管理员权限）：%w", err)
+		return fmt.Errorf("卸载服务失败：%w", err)
 	}
 	applog.OpLog("uninstall-service", "ok")
 	return nil
