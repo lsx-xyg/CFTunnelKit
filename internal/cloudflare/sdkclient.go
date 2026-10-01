@@ -106,6 +106,10 @@ func (c *sdkClient) PutIngressConfig(ctx context.Context, accountID, tunnelID st
 			Service:  cf.F(r.Service),
 		})
 	}
+	// append catch-all 404 rule
+	ingress = append(ingress, zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress{
+		Service: cf.F("http_status:404"),
+	})
 	svc := zero_trust.NewTunnelCloudflaredConfigurationService(
 		option.WithBaseURL("https://api.cloudflare.com/client/v4"),
 		option.WithHTTPClient(&http.Client{Transport: newTransport()}),
