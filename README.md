@@ -36,6 +36,7 @@ CFTunnelKit 是一个跨平台桌面应用（当前支持 Windows），帮你用
 - 📦 **系统托盘** — 关闭窗口隐藏到托盘，右键开机自启切换
 - 🔄 **自动恢复** — 下次打开自动连接上次运行的隧道
 - 📁 **日志落盘** — app.log / cloudflared.log / operation.log 三个文件自动轮转
+- 🔔 **检查更新** — 启动时静默检查新版本，有更新时"更多"菜单显示红点，手动点击弹窗跳转下载
 
 ## 快速开始
 
@@ -126,6 +127,9 @@ git push origin v0.6.0
 - [x] 后台轮询 Cloudflare tunnel 状态 — [#37](https://github.com/lsx-xyg/CFTunnelKit/issues/37)
 - [x] 迁移到 cloudflare/cloudflare-go 官方 SDK v7 — [#38](https://github.com/lsx-xyg/CFTunnelKit/issues/38)
 - [x] 前端 @/api 分层，组件不再直连 wailsjs
+- [x] 检查更新（启动静默检查 + 红点提示 + 手动弹窗）
+- [x] UI 无障碍（aria-label、Esc 关弹窗、focus trap）
+- [x] 统一错误文案（friendlyError 覆盖权限/网络/409/DNS/Ingress 校验）
 - [ ] VerifyToken 迁移到 SDK — [#41](https://github.com/lsx-xyg/CFTunnelKit/issues/41)
 - [ ] Linux / macOS 构建
 
