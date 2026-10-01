@@ -2,6 +2,7 @@ package cloudflare
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	cf "github.com/cloudflare/cloudflare-go/v7"
@@ -132,7 +133,17 @@ func (c *sdkClient) VerifyToken(ctx context.Context) (TokenInfo, error) {
 }
 
 func (c *sdkClient) GetTunnelToken(ctx context.Context, accountID, tunnelID string) (string, error) {
-	return c.fallback.GetTunnelToken(ctx, accountID, tunnelID)
+	tokenPtr, err := c.sdk.ZeroTrust.Tunnels.Cloudflared.Token.Get(ctx, tunnelID,
+		zero_trust.TunnelCloudflaredTokenGetParams{
+			AccountID: cf.F(accountID),
+		})
+	if err != nil {
+		return "", err
+	}
+	if tokenPtr == nil || *tokenPtr == "" {
+		return "", fmt.Errorf("tunnel token is empty")
+	}
+	return *tokenPtr, nil
 }
 
 func (c *sdkClient) ListZones(ctx context.Context, accountID string) ([]Zone, error) {
